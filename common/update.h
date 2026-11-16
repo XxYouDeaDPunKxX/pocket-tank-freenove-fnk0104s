@@ -60,7 +60,8 @@ typedef struct {
 enum { NET_IDLE = 0, NET_BUSY, NET_DONE, NET_FAILED };
 enum { NET_ERR_NONE = 0, NET_ERR_NO_SIGNAL, NET_ERR_PASSWORD, NET_ERR_NO_NET, NET_ERR_BAD_MANIFEST,
        NET_ERR_DOWNLOAD, NET_ERR_VERIFY, NET_ERR_SPACE, NET_ERR_ABORTED, NET_ERR_RADIO,
-       NET_ERR_BOARD };            /* the image's board marker named another board (2026-10-02): refused, nothing written past its first sector */
+       NET_ERR_BOARD,             /* the image's board marker named another board (2026-10-02): refused, nothing written past its first sector */
+       NET_ERR_NO_CHANNEL };      /* board-specific OTA channel has not been configured */
 
 /* THE SAVED NETWORKS (0.4.2: up to three, wifi_nets.h - kept in the order the tank tries them, the one used last
  * first). _get is that first one, as it was when the tank kept one. _set ADDS (a name already saved takes the new

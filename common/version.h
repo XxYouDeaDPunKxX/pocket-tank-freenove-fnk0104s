@@ -30,7 +30,7 @@
 #define PT_RELEASE_HOTFIX 0                    /* a fourth part (2026-10-21): a fix between patches - 0.3.8.1 - that
                                                   must not burn the next number. 0 = none, and the string has three parts */
 #define PT_RELEASE       "0.4.2"
-#define PT_RELEASE_STAGE "alpha"               /* pre-1.0: shown beside the number ("alpha" in a release; "dev" on main between them) */
+#define PT_RELEASE_STAGE "beta"                /* first public FNK0104S beta; keep numeric version for OTA/save compatibility */
 /* the packed number the tank compares (update.c newer(), the save's stamp):
  * a byte each, major.minor.patch.hotfix. Until 0.3.8 it was three bytes
  * (major << 16 | minor << 8 | patch): every four-byte number is larger than
@@ -58,7 +58,10 @@
  * (firmware/main/net_port_esp.c, right after the app descriptor) is not its
  * own. The installer offers one manifest per board. PT_BOARD is a file-name
  * safe id; PT_BOARD_NAME is the maker's name for it. */
-#if defined(TANK_ROUND)
+#if defined(TANK_FREENOVE)
+#define PT_BOARD         "fnk0104s"
+#define PT_BOARD_NAME    "Freenove ESP32-S3 Display 4.0"
+#elif defined(TANK_ROUND)
 #define PT_BOARD         "round175c"
 #define PT_BOARD_NAME    "ESP32-S3-Touch-AMOLED-1.75C"
 #elif defined(TANK_WATCH)
@@ -76,7 +79,8 @@
 static inline const char *pt_board_words(const char *id) {
     if (!id) return NULL;
     return !strcmp(id, "amoled18") ? "1.8 INCH" : !strcmp(id, "round175c") ? "1.75 ROUND" :
-           !strcmp(id, "watch206") ? "2.06 WATCH" : !strcmp(id, "square216") ? "2.16 SQUARE" : NULL;
+           !strcmp(id, "watch206") ? "2.06 WATCH" : !strcmp(id, "square216") ? "2.16 SQUARE" :
+           !strcmp(id, "fnk0104s") ? "FREENOVE 4.0" : NULL;
 }
 #define PT_BOARD_MAGIC   "PTBOARD"             /* the image's board marker begins with these 8 bytes (with the NUL) */
 #define PT_BOARD_MARKER_OFFSET 0x120           /* ... at this offset in the app image: the image header (24) + the

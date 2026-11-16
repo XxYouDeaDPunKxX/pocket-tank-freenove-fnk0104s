@@ -1,4 +1,4 @@
-#!/Users/strato/.espressif/python_env/idf5.4_py3.13_env/bin/python
+#!/usr/bin/env python3
 """shot.py PORT x0 y0 w h out.png [scale] - ask the tank for the last frame's pixels in a box (director `shot`)
 and write them as a PNG, enlarged `scale` times (default 4). Opens the port like director.py (no reset)."""
 import sys, time, zlib, struct

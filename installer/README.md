@@ -1,157 +1,59 @@
-# Browser installer
+# Browser installer — Freenove FNK0104S
 
-Plug the board in, open a page, click Install: the same "flash it from the
-browser" flow ESPHome and Home Assistant use ([ESP Web
-Tools](https://esphome.github.io/esp-web-tools/), Apache-2.0, vendored under
-`vendor/`). Chrome or Edge on a desktop; it uses Web Serial, which Safari
-and Firefox don't have.
+This is the browser installer for the **unofficial FNK0104S beta port** of [Pocket Tank](https://github.com/mediacutlet/pocket-tank). It installs **only** the Freenove ESP32-S3 4.0-inch (480×320 ST7796) profile. For Waveshare hardware, use [upstream's installer](https://pocketank.com/install/).
 
-## Build the upload folder
+The public installer lives on **GitHub Pages for this fork** after the repository's publication gate is opened. Find its HTTPS URL in the repository's **Settings → Pages** or **Deployments → github-pages**. You can alternatively use the offline installer ZIP attached to the fork's [beta release](../../../releases).
 
-```
-idf.py -B ~/.cache/pocket-tank/fw-build build     # in firmware/ (or any -B dir)
-tools/make_installer.py                            # -> installer/dist/
-python3 -m http.server -d installer/dist 8765      # local check at http://localhost:8765
-```
+## Install or update over USB-C
 
-The page follows stratobuilds.com's design (the `#f8f8f8` page, white /
-`#222` / lavender cards at 10px, Inter Tight and Roboto Mono from Google
-Fonts, the red button). When only the page changed, re-uploading
-`index.html` is enough - the binaries and `vendor/` are untouched.
+1. Use **Chrome or Edge on a desktop** and a USB-C cable that carries data. Connect the **FNK0104S** to the computer.
+2. Open the fork's HTTPS installer (or locally host the release ZIP as explained below). The page shows the firmware version it will write.
+3. Click **Install Pocket Tank**, choose the ESP32-S3 serial port, and complete the ESP Web Tools dialog. On some systems it is labelled **USB JTAG/serial debug unit**; on others it has a COM or ttyACM name.
+4. Allow the board to restart into the aquarium. If desired, use its on-screen Wi-Fi setup to save a network for **clock synchronization and signed beta OTA updates**.
 
-`installer/dist/` is the whole thing: `index.html`, `manifest.json`,
-`manifest-erase.json`, `firmware/*.bin` (bootloader, partition table, app,
-model), `vendor/`. The offsets in the manifests come from the build's
-`flasher_args.json` and from `firmware/partitions.csv`, and the page carries
-the git version. It is gitignored: rebuild it for every release.
+**Normal Install preserves the NVS save partition** containing fish progress and network settings. A separate **Erase the board and install fresh** button deliberately erases them. Back up important progress before a beta update when possible; interrupted writes or unexpected firmware failures are always possible.
 
-## Updating never erases (the two manifests, and one patched line)
+If the port does not appear, close serial monitors, check the cable and USB port, and try holding **BOOT while reconnecting** to enter ESP32-S3 download mode. During SCREEN sleep, one touch can wake the display; other sleep modes may use BOOT.
 
-The tank's save lives in NVS at `0x9000`; the four parts sit at `0x0`,
-`0x8000`, `0x10000` and `0x290000`, so a plain write of the four leaves it
-alone and the tank carries on after an update (`tools/flash.sh` does the same
-writes every day). The catch was in the dialog: ESP Web Tools 10.4.0 has no
-manifest option for "install, don't erase" on a device without Improv.
-`new_install_prompt_erase: true` asks (checkbox off by default), and without
-it the dialog erases the chip first, unconditionally. So:
+## Host the offline ZIP locally
 
-- `manifest.json` (the red button) carries `"never_erase": true` and
-  `make_installer.py` patches the copied `install-dialog-*.js` at assembly:
-  the two click handlers that read `_startInstall(!0)` (erase) become
-  `_startInstall(!this._manifest.never_erase)`. The build fails loudly if
-  the handler text is not found exactly twice, so a vendor upgrade can't
-  ship an erasing page by accident. `vendor/` itself stays pristine.
-- `manifest-erase.json` (the "Erase the board and install fresh" button)
-  is the same parts with the erase question, for a board that is stuck or
-  a keeper who wants a clean flash. The on-device reset (hold BOOT, tap the
-  glass) is the normal way to start over and needs no page.
+Extract the full beta release archive, including `index.html`, `manifest.json`, `manifest-erase.json`, `firmware/` and `vendor/`. In the extracted directory, run:
 
-The firmware side of the promise: `common/progression.c` loads a save of any
-older length (the tail only ever appends) and slides the one mid-struct
-insertion (bubble_x, 2026-09-14) into place for saves from the first public
-builds; since 2026-09-29 it also loads the head of a NEWER build's longer
-save, so rolling back to an older release keeps the tank (the newer-only
-tail reads as its defaults when the newer build returns). What guards it:
-
-- **SAVE LAYOUT LOCK** (progression.c): a compile-time assert on every
-  save_t / fish_save_t offset, the magic, the NVS names, and the NVS size
-  budget (4000 B, math in the comment). A field inserted mid-struct, a
-  rename of `tank`/`save`, or a save too big for the partition fails the
-  build, on the device and in the sim.
-- **`sim/fishsim --selftest-saves`**: every save in `sim/testdata/saves/`
-  (the board's, the sim's, one with every tail set) loads whole and cut to
-  every older build's length, checked field by field against the file's
-  own bytes, then again after a save; plus a newer build's longer save (the
-  rollback). Add a save from each release there (its README says how).
-- **`check_nvs_untouched`** (make_installer.py): the installer build fails
-  if the partition table it ships moves or resizes nvs, or if any part it
-  writes overlaps 0x9000..0xF000.
-- **Boot never erases on a guess** (main.c `nvs_start`): only an NVS that
-  can't mount at all ("no free pages") is erased, and a raw copy goes to the
-  front of the unused `storage` partition first (`esptool read_flash
-  0xA90000 0x6000`); any other init error runs the tank without saving and
-  leaves the flash alone. A save that exists but won't read turns saving
-  off until a reset, so it is never overwritten by a fresh tank.
-
-## It updates itself (GitHub Pages)
-
-`.github/workflows/installer.yml` in the PUBLIC repo builds the firmware
-with ESP-IDF v5.4.1 on every push to `main` that touches `firmware/`,
-`common/`, `model/out/`, `installer/` or the assembler, runs
-`tools/make_installer.py`, and deploys the folder to
-**https://mediacutlet.github.io/pocket-tank/**. Pages serves HTTPS with
-`Access-Control-Allow-Origin: *`, so the copy on stratobuilds.com points
-its button at that manifest:
-
-```
-tools/make_installer.py --manifest-url https://mediacutlet.github.io/pocket-tank/manifest.json --out /tmp/site
+```sh
+python -m http.server 8765
 ```
 
-and that `index.html` PLUS its `vendor/esp-web-tools-<tag>/` folder live on
-the site - the never-erase patch is in the vendor's dialog bundle. An old
-`vendor/` next to the new manifest erased every install without asking
-(the 09-11 upload, found 2026-09-18), and the host serves `.js` with a
-year's max-age, so the folder name now carries the patched dialog's hash.
-One command builds, uploads over ssh (host `stratobuilds`), purges
-SiteGround's dynamic cache and checks the live URL:
+Open `http://localhost:8765` in Chrome or Edge. Web Serial requires **HTTPS or localhost**. Opening `index.html` as a `file://` document is not supported.
 
-```
-pocket-tank/tools/publish_site_installer.sh
+## Assemble a local installer (maintainers)
+
+With **ESP-IDF 5.4.2** activated and the persistent RSA-3072 signing key at `firmware/keys/ota_signing_key.pem`, build from `firmware/`:
+
+```sh
+idf.py -B build-freenove "-DSDKCONFIG=build-freenove/sdkconfig" "-DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.freenove" build
 ```
 
-Run it whenever the page, the vendored ESP Web Tools or the patch changes.
-The page fetches the manifest on load and shows the version and build date of what it will actually flash,
-so pushing to the public repo is the whole release step: no upload, no
-cache purge. (Manual failure mode: the Actions run is red - `gh run list
---repo mediacutlet/pocket-tank`.)
+Return to the repository root and generate the site:
 
-## Host it
+```sh
+python tools/make_installer.py --build-dir firmware/build-freenove
+python -m http.server --directory installer/dist 8765
+```
 
-Web Serial needs a secure context, so the page must be on **HTTPS** (or
-`localhost`). Any static host works; the manifest and the `.bin` files must be
-fetchable from the page's origin (or send CORS headers).
+This creates `installer/dist/` (gitignored) containing the HTML page, the two installer manifests, patched vendored [ESP Web Tools](https://esphome.github.io/esp-web-tools/) assets, six flash parts, `LICENSE` and `NOTICE`. The six parts are the bootloader, partition table, signed app, quantized model, model trailer and OTA initialization data. The firmware partition offsets come from the build configuration; do not substitute guessed addresses.
 
-**stratobuilds.com (WordPress behind Cloudflare):** upload `installer/dist/`
-as a folder next to WordPress, e.g. `public_html/pocket-tank/`, and link
-`https://stratobuilds.com/pocket-tank/`. Being a plain folder it is outside
-WordPress, so themes, caching and security plugins don't touch it. Things to
-check once:
+The local `sdkconfig.freenove` intentionally leaves the OTA manifest URL empty. **Published beta firmware** instead uses an ignored CI overlay generated from `GITHUB_REPOSITORY`; its OTA manifest URL is:
 
-- Open the page, the button must say *Install Pocket Tank*, not the red
-  unsupported text. If it never appears, Cloudflare's Rocket Loader is
-  rewriting the module script: exclude `/pocket-tank/*` from it (a
-  Configuration Rule), or turn it off.
-- In the browser's network tab `manifest.json` and `firmware/*.bin` must be
-  200. A 403 on `.bin` means the host blocks the type: the `.htaccess` in the
-  folder adds it for Apache/LiteSpeed; on nginx add
-  `types { application/octet-stream bin; }`.
-- Cloudflare caches `.bin` and `.js` by default. After uploading a new build,
-  purge `/pocket-tank/*` (the manifest carries the version, so a stale
-  cache shows an old version string on the page).
+```text
+https://<owner>.github.io/<repository>/latest-fnk0104s-beta.json
+```
 
-**GitHub Pages** (the public repo) is the other easy option: push `dist/` to
-a `gh-pages` branch or a `docs/installer/` folder. Pages serves HTTPS and
-`Access-Control-Allow-Origin: *`, so the button can even live on a WordPress
-page (Custom HTML block with the `<script type="module">` tag and the
-`<esp-web-install-button manifest="https://...manifest.json">` element)
-while the binaries stay on GitHub.
+Each approved `fnk0104s-v<firmware-version>-beta.<N>` prerelease publishes its signed app on GitHub Releases and refreshes this beta manifest on Pages. The installer workflow also retains the current beta manifest when refreshing the site. Beta releases are GitHub **prereleases**; they are deliberately not advertised as stable `releases/latest`.
 
-## What the user sees
+The standard manifest uses `never_erase: true`; `tools/make_installer.py` patches the vendored install dialog so that it respects this setting. The generator checks that no normal installer part overlaps the NVS partition at `0x9000`–`0xF000`. The erase manifest remains a separate, explicit operation. This is the inherited upstream save-preservation mechanism, retained for the FNK0104S.
 
-Click → the browser's port picker (`USB JTAG/serial debug unit`) → *Install
-Pocket Tank* → "Do you want to install Pocket Tank <version>?" → a progress
-bar over the four parts → *Installation complete*, and the board resets into
-the tank: fresh on a blank board, the same tank on one that had it. The
-"start over" button adds the erase question (tick *Erase device*). The page's
-"If something's off" section covers the usual snags: a sleeping tank hides
-its USB port (press PWR), holding BOOT while plugging in forces download
-mode, Linux group permissions, charge-only cables, and an optional esptool
-backup of the save area for the cautious.
+The repository's [publishing guide](../docs/PUBLISHING.md) describes the GitHub Actions gate, signing-key continuity, beta release and deployment checks. `installer.yml` and `release.yml` cannot publish until the repository owner enables the explicit publication variable. **Building the local installer does not publish or flash anything.**
 
-## Verified
+## Upstream credit
 
-The artifact set in `dist/firmware/` at the manifest's offsets was written to
-the real board with `esptool.py write_flash` (the exact operation ESP Web
-Tools performs, from the same files), and the tank booted; the page, manifest
-and vendor bundle were checked from a local server. The browser's own port
-picker is a native dialog, so the click-through itself is a human test.
+The underlying installer technique, ESP Web Tools integration, preservation safeguards and game belong to the [original Pocket Tank project](https://github.com/mediacutlet/pocket-tank). This fork adds the Freenove-specific build, assets and beta release channel. See [LICENSE](../LICENSE), [NOTICE](../NOTICE) and the [original README](../README-UPSTREAM.md).

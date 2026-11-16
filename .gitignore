@@ -12,8 +12,12 @@ model/runq4
 q4_host
 firmware/host_test/q4_host
 firmware/build/
+firmware/build-freenove/
+firmware/build-*/
 firmware/sdkconfig
 firmware/sdkconfig.old
+# Generated only inside the approved fork's CI release/installer workflows.
+firmware/sdkconfig.freenove.ci
 firmware/dependencies.lock
 firmware/managed_components/
 firmware/build_qemu/

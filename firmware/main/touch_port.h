@@ -6,6 +6,7 @@
 bool touch_port_init(void);
 bool touch_port_deep_sleep(void);   /* the night's deep sleep: the chip's own sleep, its reset left high (true = it took it); the wake is a reboot */
 void touch_port_poll(tank_t *t);
+void touch_port_ignore_sleep_wake(void); /* consume the touch that woke a dark screen until the finger lifts */
 int  touch_port_selected(void);   /* tapped fish for the stats card, RENDER_CARD_SNAIL for the snail's, -1 = none */
 /* milestones page: a tap ON the open stats card (its MORE button, or any of
  * it) flips to it; it has no

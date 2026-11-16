@@ -7,7 +7,7 @@
 #   tools/flash_square.sh               # build, flash the app
 #   tools/flash_square.sh --build-only
 #   tools/flash_square.sh --full        # a blank board: clear nvs, the model, bootloader + table + app
-#   SQUARE_SERIAL=AA:BB:CC:DD:EE:FF tools/flash_square.sh    # the board, by its USB serial (or set it once in tools/boards.local.sh)
+#   SQUARE_SERIAL=your-board-serial tools/flash_square.sh    # the board, by its USB serial (or set it once in tools/boards.local.sh)
 #
 # Its own build directory and sdkconfig (~/.cache/pocket-tank/fw-build-216):
 # the tank's fw-build is never touched. No preflight: this board holds no tank

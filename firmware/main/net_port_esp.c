@@ -16,7 +16,8 @@
  *                 one network: whenever found they are added to nets and
  *                 then erased (nets_load). Its own namespace: the tank's
  *                 reset wipes "tank", never this.
- *   the manifest  OTA_MANIFEST_BASE + the board (a GitHub Release's "latest" asset), one
+ *   the manifest  Waveshare: OTA_MANIFEST_BASE + the board; Freenove: a
+ *                 separately configured fork URL (empty until published), one
  *                 per board: latest-<board>.json. Small JSON: release,
  *                 board, build, min_from, app{url,size,sha256}, note,
  *                 needs_cable, model{version,size,url}. A manifest naming
@@ -205,6 +206,8 @@ const char *net_port_manifest_url(void) {                   /* the director's ov
     if (nvs_get_str_ns("url", url, sizeof url) && url[0]) return url;
 #ifdef OTA_MANIFEST_URL
     return OTA_MANIFEST_URL;
+#elif defined(CONFIG_POCKET_TANK_FREENOVE)
+    return CONFIG_POCKET_TANK_FREENOVE_OTA_MANIFEST_URL;
 #else
     snprintf(url, sizeof url, OTA_MANIFEST_BASE "%s.json", update_target_board());
     return url;
@@ -671,6 +674,10 @@ static int fetch_manifest(const char *url, char *buf) {   /* the manifest at url
     return status == 404 ? NET_ERR_BAD_MANIFEST : NET_ERR_NO_NET;
 }
 static void do_check(void) {
+    if (!net_port_manifest_url()[0]) {
+        ESP_LOGI(TAG, "OTA: no Freenove release channel configured; Wi-Fi remains available");
+        s_err = NET_ERR_NO_CHANNEL; s_state = NET_FAILED; return;
+    }
     char *buf = heap_caps_malloc(4096 + NET_URL_MAX + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!buf) { s_err = NET_ERR_NO_NET; s_state = NET_FAILED; return; }
     char *crew_manifest = buf + 4096;                       /* the early manifest's URL rides past the answer's 4 KB, in PSRAM: never
@@ -679,7 +686,8 @@ static void do_check(void) {
     crew_manifest[0] = 0;
     char override[NET_URL_MAX + 1];
     bool test_channel = nvs_get_str_ns("url", override, sizeof override) && override[0];   /* the director's `ota url` wins */
-    if (!test_channel) crew_check(crew_manifest, NET_URL_MAX + 1, buf, 4096);
+    /* Hatchery Crew is upstream's Waveshare program, not the Freenove fork. */
+    if (!test_channel && strcmp(update_target_board(), "fnk0104s")) crew_check(crew_manifest, NET_URL_MAX + 1, buf, 4096);
     const char *url = !test_channel && crew_manifest[0] ? crew_manifest : net_port_manifest_url();
     int err = fetch_manifest(url, buf);
     if (err != NET_ERR_NONE && url == crew_manifest) {   /* the early manifest would not come (a 404, a 5xx, no answer, a page we

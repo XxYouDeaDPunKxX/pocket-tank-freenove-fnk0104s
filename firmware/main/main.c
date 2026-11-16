@@ -64,6 +64,9 @@
 #include "esp_async_memcpy.h"
 #include "freertos/semphr.h"
 #include "driver/gpio.h"
+#ifdef TANK_FREENOVE
+#include "driver/usb_serial_jtag.h"
+#endif
 #include "esp_sleep.h"
 #include "driver/rtc_io.h"
 
@@ -90,7 +93,7 @@ static bool s_rtc;                         /* an RTC chip answered: the wall clo
 #define PWR_SENSE ((gpio_num_t)board_pwr_sense_pin())   /* the round board and the watch: a line that is high while the PWR key is down */
 static bool pwr_sensed(void) { return board_pwr_sense_pin() >= 0; }
 static bool pwr_sense_down(void) { return pwr_sensed() && gpio_get_level(PWR_SENSE); }
-#ifdef CONFIG_POCKET_TANK_DISPLAY_SH8601
+#if defined(CONFIG_POCKET_TANK_DISPLAY_SH8601) || defined(CONFIG_POCKET_TANK_FREENOVE)
 extern i2c_master_bus_handle_t board_i2c_bus(void);
 #else
 static i2c_master_bus_handle_t board_i2c_bus(void) { return NULL; }
@@ -445,7 +448,8 @@ static void clock_lag_put(int lag, int ok) {    /* NVS "netlag" and "netok" toge
     if (nvs_open("tank", NVS_READWRITE, &h) == ESP_OK) { nvs_set_u8(h, "netlag", (uint8_t)lag); nvs_set_u8(h, "netok", (uint8_t)ok); nvs_commit(h); nvs_close(h); }
 }
 static void net_clock_boot(uint16_t *fb) {  /* before the tank exists: the radio has the internal heap to itself */
-    if (!s_pmic || !net_saved()) return;
+    /* Wi-Fi time works without an AXP2101: the FNK0104S has no PMIC or backup RTC. */
+    if (!net_saved()) return;
     const clock_gate_in_t g = { .rtc = s_rtc, .real = nvs_u8("netclk", 0), .set = clock_port_now_unix() != 0, .ok_before = nvs_u8("netok", 0),
                                 .lag = clock_lag_of(nvs_u8("netlag", 255)), .gave = nvs_u8("netgave", 0), .missed = net_time_missed() };
     const bool real = g.real, set = g.set;
@@ -534,6 +538,16 @@ void device_clock_log(void) {               /* director `clock` */
    stuck down - BOOT low, the PWR sense high - waited for good on a dark glass, the tank task silent and PWR dead (the
    watch found dark). Past KEY_UP_WAIT_US it says which key and goes on; false = one is still down */
 #define KEY_UP_WAIT_US (3000000LL)
+int device_fnk_sleep_mode(int mode) {
+#ifdef TANK_FREENOVE
+    if (mode >= 0 && mode <= 3) nvs_u8_put("fnkslp", mode);
+    int saved = nvs_u8("fnkslp", 0);
+    return saved <= 3 ? saved : 0;
+#else
+    (void)mode;
+    return -1;
+#endif
+}
 static bool keys_up_wait(const char *when) {
     for (int64_t t0 = esp_timer_get_time(); !gpio_get_level(BTN_SLEEP) || pwr_sense_down(); vTaskDelay(pdMS_TO_TICKS(10))) {
         wdt_feed();
@@ -553,6 +567,26 @@ static void enter_sleep_for(int wake_after_s) {
     ota_valid_now("a sleep");                  /* (before the save and any power cut below) */
     int pct0 = battery_pct(), mv0 = battery_port_vbat_mv();
     int64_t grace_us = wake_after_s > 0 ? DIRECTOR_GRACE_US : s_rtc ? SLEEP_GRACE_US : SLEEP_GRACE_CLOCKLESS_US;
+#ifdef TANK_FREENOVE
+    /* Keep the upstream two-stage sleep as the default. The optional modes
+       are a board-local USB experiment; timed director sleeps still deep-sleep. */
+    int fnk_mode = wake_after_s > 0 ? 0 : device_fnk_sleep_mode(-1);
+    /* NEVER suppresses BOOT's sleep through enter_sleep(); a deliberate
+       director deepsleep command still uses the original sleep sequence. */
+    if (fnk_mode == 3) fnk_mode = 0;
+    /* ESP32-S3 USB Serial/JTAG loses its host connection in light sleep.
+       Preserve the operator's serial session while a USB host is attached;
+       USB power from a charger, without a host, still permits LIGHT. */
+    if (fnk_mode == 2 && usb_serial_jtag_is_connected()) {
+        ESP_LOGI(TAG, "Freenove LIGHT -> SCREEN: USB serial host connected");
+        fnk_mode = 1;
+    }
+    if (fnk_mode) ESP_LOGI(TAG, "Freenove sleep: %s until BOOT or touch, no deep-sleep timer",
+                           fnk_mode == 1 ? "SCREEN" : "LIGHT");
+#endif
+#ifdef TANK_FREENOVE
+    if (!fnk_mode)
+#endif
     ESP_LOGI(TAG, "sleep: save, panel off, %d s grace then %s | battery %d%% %d mV",
              (int)(grace_us / 1000000),
              wake_after_s > 0 ? "deep sleep with the timer" : night_powers_off() ? (s_rtc ? "PMIC power-off (the PWR key boots it)" : "PMIC power-off (the PWR key boots it; the internet gives the time back)")
@@ -581,16 +615,44 @@ static void enter_sleep_for(int wake_after_s) {
        director's bench and a board with no PMIC */
     int64_t t0 = esp_timer_get_time();
     bool pressed = false;
+#ifdef TANK_FREENOVE
+    bool by_touch = false;
+    /* A finger already on the glass when BOOT put the panel to sleep must
+       lift before a new touch can wake it. */
+    float touch_x, touch_y;
+    bool touch_armed = !fnk_mode || !touch_port_read_raw(&touch_x, &touch_y);
+#endif
     for (;;) {
         int64_t left = grace_us - (esp_timer_get_time() - t0);
+#ifdef TANK_FREENOVE
+        if (fnk_mode == 0 && left <= 0) break;
+#else
         if (left <= 0) break;
+#endif
         wdt_feed();                             /* (each 1 s slice: the grace is no hang) */
+#ifdef TANK_FREENOVE
+        esp_sleep_wakeup_cause_t why = ESP_SLEEP_WAKEUP_UNDEFINED;
+        if (fnk_mode == 1) {
+            /* Backlight off, CPU/USB alive. A touch probe does not dispatch
+               any game action while the glass is dark. */
+            vTaskDelay(pdMS_TO_TICKS(30));
+        } else {
+#endif
         if (!boot_stuck) gpio_wakeup_enable(BTN_SLEEP, GPIO_INTR_LOW_LEVEL);
         if (pwr_sensed() && !pwr_stuck) gpio_wakeup_enable(PWR_SENSE, GPIO_INTR_HIGH_LEVEL);   /* the PWR key itself: no second of polling to wait out */
         esp_sleep_enable_gpio_wakeup();
+#ifdef TANK_FREENOVE
+        int64_t poll_us = fnk_mode == 2 ? 250000LL : left < KEY_POLL_US ? left : KEY_POLL_US;
+        esp_sleep_enable_timer_wakeup(poll_us);
+#else
         esp_sleep_enable_timer_wakeup(left < KEY_POLL_US ? left : KEY_POLL_US);
+#endif
         esp_light_sleep_start();
+#ifndef TANK_FREENOVE
         esp_sleep_wakeup_cause_t why = esp_sleep_get_wakeup_cause();
+#else
+        why = esp_sleep_get_wakeup_cause();
+#endif
         if (!boot_stuck) gpio_wakeup_disable(BTN_SLEEP);
         if (pwr_sensed() && !pwr_stuck) gpio_wakeup_disable(PWR_SENSE);
         /* wake sources are STICKY in ESP-IDF (s_config.wakeup_triggers): the
@@ -599,6 +661,14 @@ static void enter_sleep_for(int wake_after_s) {
          * two-stage change lasted exactly 3 minutes). Drop everything each
          * slice, then arm stage 2's own. */
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+#ifdef TANK_FREENOVE
+        }
+        if (fnk_mode && !boot_stuck && !gpio_get_level(BTN_SLEEP)) { pressed = true; break; }
+        if (fnk_mode) {
+            if (!touch_port_read_raw(&touch_x, &touch_y)) touch_armed = true;
+            else if (touch_armed) { pressed = by_touch = true; break; }
+        }
+#endif
         if (why == ESP_SLEEP_WAKEUP_GPIO || battery_port_key_poll()) { pressed = true; break; }
     }
     if (pressed) {                              /* a quick wake: resume in place */
@@ -610,6 +680,9 @@ static void enter_sleep_for(int wake_after_s) {
         battery_woke(&s_bh);                    /* what the gauge lost asleep is no screen-on drain */
         display_port_wake();
         imu_port_wake();
+#ifdef TANK_FREENOVE
+        if (by_touch) touch_port_ignore_sleep_wake();
+#endif
         wdt_feed();
         batlog_add(battery_pct(), battery_port_vbat_mv(), 0, true, "nap");
         s_snap_n = 0; s_btn_armed = false; s_btn_low_since = 0;   /* require a fresh press */
@@ -630,7 +703,15 @@ static void enter_sleep_for(int wake_after_s) {
     }
     deep_sleep_now(wake_after_s);
 }
-static void enter_sleep(void) { enter_sleep_for(0); }
+static void enter_sleep(void) {
+#ifdef TANK_FREENOVE
+    if (device_fnk_sleep_mode(-1) == 3) {
+        ESP_LOGI(TAG, "Freenove sleep: NEVER selected; BOOT press ignored");
+        return;
+    }
+#endif
+    enter_sleep_for(0);
+}
 /* deep sleep: BOOT as ext0 (and the director's timer). The pads: I2S + amp
    CTRL low and held; with digital hold on, esp_deep_sleep_start isolates every
    other digital pad (input, output and pulls off) - the light-sleep drowse
@@ -1481,6 +1562,15 @@ static void shelf_tap(float x, float y, int64_t press_us) {   /* (press_us: when
     }
 }
 static void sleep_button_poll(int64_t now) {
+#ifdef TANK_FREENOVE
+    /* A short BOOT press is sleep on this PMIC-less board. Delay it until
+       the double-press window closes so MY TANKS can still be opened. */
+    if (s_btn_once && !s_btn_low_since && gpio_get_level(BTN_SLEEP) && now - s_btn_up_at > BTN_DOUBLE_US) {
+        s_btn_once = false;
+        enter_sleep();
+        return;
+    }
+#endif
     if (gpio_get_level(BTN_SLEEP)) {
         if (s_btn_armed && s_btn_low_since && !s_btn_used) {
             int64_t held = now - s_btn_low_since;
@@ -1488,7 +1578,12 @@ static void sleep_button_poll(int64_t now) {
                 if (s_btn_once && s_btn_low_since - s_btn_up_at <= BTN_DOUBLE_US) { s_btn_once = false; shelf_toggle(); }
                 else { s_btn_once = true; s_btn_up_at = now; }
             } else s_btn_once = false;
+#ifndef TANK_FREENOVE
             if (!s_pmic && held >= BTN_DEBOUNCE_US) enter_sleep();
+#else
+            /* Long BOOT still sleeps at release; the protected chord does not. */
+            if (!s_pmic && held >= BTN_DOUBLE_US) enter_sleep();
+#endif
         }
         s_btn_armed = true; s_btn_low_since = 0; s_btn_used = false;
     } else if (s_btn_armed) {
@@ -1496,6 +1591,9 @@ static void sleep_button_poll(int64_t now) {
         else if (!s_btn_used && !touch_port_touch_lock() && now - s_btn_low_since >= BTN_CHORD_US && touch_port_pressed_since(s_btn_low_since + BTN_CHORD_US)
                  && !touch_port_confirm_up() && !adv_up()) {
             s_btn_used = true;
+#ifdef TANK_FREENOVE
+            s_btn_once = false;
+#endif
             if (touch_port_settings()) { ESP_LOGI(TAG, "BOOT held %.0f s + tap on the settings page: the ADVANCED page", ADV_BOOT_HOLD_S);
                 int w = touch_port_open_advanced();          /* (its tap on a slider jumped the knob: the saved level back, nothing written) */
                 if (w == SET_TAP_BRIGHT) brightness_restore(); else if (w == SET_TAP_VOLUME) audio_port_restore_volume(); }
@@ -1783,13 +1881,13 @@ static void tank_task(void *arg) {
           if (live != kept) { nvs_u8_put("inv", live); kept = live; }
           if (side != kept_side) { nvs_u8_put("side", side); kept_side = side; } }
         int q = tank_orient(&tank, imu_port_quarter());   /* the live way up, or the one settings' ROTATION locked (0.3.2; a side, 0.3.9.3) */
-#ifdef TANK_WATCH
+#if TANK_MANUAL_SCREEN
         q = tank_screen_turned(&tank) ? 2 : 0;  /* worn on a wrist the live flip never runs (the arm swings through every angle):
                                                    the way up is the keeper's setting, or what AUTO learned from the taps (tank.h) */
 #endif
         {   /* the ADVANCED page's TURN IT OVER (0.4.2): during the turned sitting the flow has the way up - the IMU's own
                reading (a ROTATION lock set aside), the watch's turned over from its SCREEN - and the IMU's turn starts it */
-#if TANK_WORN
+#if TANK_MANUAL_SCREEN
             int sq = adv_quarter(q, -1);
 #else
             int sq = adv_quarter(q, imu_port_quarter());
@@ -1798,7 +1896,7 @@ static void tank_task(void *arg) {
             touch_port_set_quarter(sq);
         }
         { static int kept_uq = -1;        /* ... and for update mode's pages after the restart: the way up, fixed if the IMU did not choose it */
-#ifdef TANK_WATCH
+#if TANK_MANUAL_SCREEN
           int uq = q | UPD_WAY_FIXED;
 #else
           int uq = q | (tank.orient_lock ? UPD_WAY_FIXED : 0);

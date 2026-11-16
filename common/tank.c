@@ -3482,8 +3482,8 @@ bool tank_light_off(const tank_t *t) {       /* (0.4.2) tank.h: night, or a boot
 }
 
 /* the worn tank's way up (tank.h) */
-bool tank_screen_turned(const tank_t *t) { return TANK_WORN && t->screen_turned; }
-void tank_screen_set(tank_t *t, bool turned) { t->screen_turned = TANK_WORN && turned; }
+bool tank_screen_turned(const tank_t *t) { return TANK_MANUAL_SCREEN && t->screen_turned; }
+void tank_screen_set(tank_t *t, bool turned) { t->screen_turned = TANK_MANUAL_SCREEN && turned; }
 int tank_orient(tank_t *t, int live_q) {
     if (!t->orient_lock) t->orient_q = (uint8_t)TANK_QUARTER(live_q);
     return t->orient_q;

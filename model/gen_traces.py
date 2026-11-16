@@ -518,7 +518,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--count", type=int, required=True, help="number of (state, goal) pairs")
     ap.add_argument("--dry-run", action="store_true", help="print states, skip Ollama")
-    ap.add_argument("--host", default="http://192.168.0.139:11434", help="Ollama base URL")
+    ap.add_argument("--host", default="http://127.0.0.1:11434", help="Ollama base URL")
     ap.add_argument("--model", default="gemma4:26b")
     ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "out", "traces.jsonl"))
     ap.add_argument("--seed", type=int, default=None)

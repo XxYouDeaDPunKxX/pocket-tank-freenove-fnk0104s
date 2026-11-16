@@ -4,28 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#f8f8f8">
-<title>Install Pocket Tank</title>
-<meta name="description" content="Install Pocket Tank on a Waveshare ESP32-S3-Touch-AMOLED-1.8 from your browser. Nothing to download.">
-<link rel="canonical" href="https://pocketank.com/install/">
-<link rel="icon" href="https://stratobuilds.com/wp-content/uploads/2025/06/strato-builds-favicon-64.png" sizes="64x64">
-<link rel="apple-touch-icon" href="https://stratobuilds.com/wp-content/uploads/2025/06/strato-builds-favicon-64.png">
+<title>Pocket Tank — Freenove FNK0104S Installer</title>
+<meta name="description" content="Unofficial Pocket Tank hardware port installer for Freenove FNK0104S (ESP32-S3, 480x320).">
 <!-- social sharing: the featured image (1280x720) and the card text -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="StratoBuilds">
-<meta property="og:url" content="https://pocketank.com/install/">
-<meta property="og:title" content="Install Pocket Tank from your browser">
-<meta property="og:description" content="A tiny AI runs a fish tank on an ESP32-S3 board. Plug it in, click Install, done. Nothing to download.">
-<meta property="og:image" content="https://stratobuilds.com/wp-content/uploads/2026/09/pt-installer.jpg">
-<meta property="og:image:width" content="1280">
-<meta property="og:image:height" content="720">
-<meta property="og:image:alt" content="Pocket Tank running on the Waveshare ESP32-S3 AMOLED board">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Install Pocket Tank from your browser">
-<meta name="twitter:description" content="A tiny AI runs a fish tank on an ESP32-S3 board. Plug it in, click Install, done. Nothing to download.">
-<meta name="twitter:image" content="https://stratobuilds.com/wp-content/uploads/2026/09/pt-installer.jpg">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
+<meta property="og:site_name" content="Pocket Tank — Freenove FNK0104S">
+<meta property="og:title" content="Pocket Tank — Freenove FNK0104S Installer">
+<meta property="og:description" content="Unofficial port for the Freenove FNK0104S ESP32-S3 4.0-inch display.">
 <style>
   /* the stratobuilds.com system: #f8f8f8 page, white / #222 / lavender cards at
      10px, Inter Tight text, Roboto Mono uppercase pills, the red button */
@@ -117,13 +102,13 @@
 <body>
 <main>
   <header class="card header">
-    <a href="https://stratobuilds.com/" aria-label="StratoBuilds"><img src="https://stratobuilds.com/wp-content/uploads/2025/06/strato-builds-logo-horizontal-400x89.png" alt="StratoBuilds" width="200" height="45"></a>
-    <span class="pill">Pocket Tank &middot; Installer</span>
+    <strong>Pocket Tank &middot; Freenove FNK0104S</strong>
+    <span class="pill">Unofficial port &middot; Beta installer</span>
   </header>
 
   <section class="card dark">
-    <h1>Install Pocket Tank</h1>
-    <p class="lede">A tiny fish tank where a small AI decides what the fish do, all on the board. Install it from this page. Update it the same way.</p>
+    <h1>Install Pocket Tank on Freenove FNK0104S</h1>
+    <p class="lede">Pocket Tank beta for the Freenove FNK0104S 4.0-inch ESP32-S3 display, based on the original project by StratoBuilds.</p>
   </section>
 
   <section class="card">
@@ -136,7 +121,7 @@
       <li><b>Plug the board into your computer.</b> Use a USB-C cable that carries data. Some cables only charge.</li>
       <li><b>Click Install.</b> Pick <code>USB JTAG/serial debug unit</code> from the list. On Linux it may say <code>ttyACM0</code>.</li>
       <li><b>Wait a minute or two.</b> When it says <em>Installation complete</em>, click <em>Next</em>.</li>
-      <li><b>Connect it to Wi-Fi.</b> Pick your network and type its password. The tank's screen stays dark until you finish. Now your tank can update itself, with no cable. You can also skip this and set it up later on the tank.
+      <li><b>Connect it to Wi-Fi if desired.</b> Pick your network and type its password, or skip and configure it later. The published beta checks for newer signed FNK0104S beta releases through this fork's OTA channel. Wi-Fi also synchronizes the clock.
         <ul>
           <li><b>New board:</b> you get a fresh tank with two baby fish.</li>
           <li><b>Already have a tank:</b> it comes back just as you left it.</li>
@@ -152,8 +137,8 @@
       </esp-web-install-button>
       <span class="meta">Chrome or Edge on a computer &middot; version <code data-version>{{VERSION}}</code></span>
     </div>
-    <p><b>Updating?</b> Use the same button. It never erases your tank: your fish, their names, badges, sand dollars and decorations all stay.</p>
-    <p class="fine">The pop-up says <em>Install</em> even when you're updating. That's normal. If the screen is dark, the tank is asleep: press <kbd>PWR</kbd> firmly to wake it first, or it won't show up in the list.</p>
+    <p><b>Updating over USB?</b> Use the same button without selecting erase. It writes the firmware partitions without intentionally clearing your saved tank. Keeping a backup is prudent during beta testing.</p>
+    <p class="fine">The pop-up says <em>Install</em> even for USB updates. If the screen is dark, press <kbd data-sleep-key>BOOT</kbd> once to wake it; in SCREEN sleep you can also touch the display.</p>
   </section>
 
   <section class="card">
@@ -175,23 +160,23 @@
     <h2>Which board?</h2>
     <p><span class="pill">Supported</span></p>
     <div data-supported>
-      <p><b>Waveshare ESP32-S3-Touch-AMOLED-1.8</b>, version V1 or V2. About $35 with the screen and a battery.</p>
+      <p><b>Freenove FNK0104S</b>, ESP32-S3 with 4.0-inch ST7796 480x320 touch display. Requires USB-C power.</p>
     </div>
-    <p class="fine">Other boards won't work yet. The installer may still run on them, but the screen will stay blank.</p>
+    <p class="fine">This installer is for the FNK0104S only. Confirm your board model before flashing; other devices are unsupported.</p>
   </section>
 
   <section class="card">
     <h2>Having trouble?</h2>
     <details>
       <summary>My board isn't in the list</summary>
-      <p>If the screen is dark, the tank is asleep. Press <kbd>PWR</kbd> firmly to wake it, then try again.</p>
-      <p>Still missing? Hold <kbd>BOOT</kbd> while you plug in the cable. That always makes it show up.</p>
+      <p>If the screen is dark, the tank is asleep. Press <kbd data-sleep-key>PWR</kbd> firmly to wake it, then try again.</p>
+      <p>Still missing? Hold <kbd>BOOT</kbd> while you plug in a data cable to enter ESP32-S3 download mode, then select its serial port.</p>
       <p>Also try another cable, and plug straight into the computer, not a hub.</p>
     </details>
     <details>
       <summary>The install fails or stops partway</summary>
       <p>Close anything else using the board, like a serial monitor or this page in another tab. Unplug, plug back in, and click Install again.</p>
-      <p>Still failing? Hold <kbd>BOOT</kbd> while you plug in, then try again. Your tank is safe either way.</p>
+      <p>Still failing? Hold <kbd>BOOT</kbd> while you plug in, then try again. An interrupted flash may require retrying the installation.</p>
     </details>
     <details>
       <summary>Linux: "permission denied"</summary>
@@ -207,8 +192,8 @@
     </details>
     <details>
       <summary>What gets installed?</summary>
-      <p>The app, the 7.5 MB AI model, and two small startup files. Your tank's save sits in a separate spot the installer never touches. Only the erase button clears it.</p>
-      <p>Everything runs on the board. Nothing is sent anywhere.</p>
+      <p>The signed app, the 7.56 MB AI model, bootloader, partition table, model trailer and OTA initialization data. The normal installer preserves the NVS save partition; the separate erase option clears saved state and Wi-Fi credentials.</p>
+      <p>The fish simulation and AI inference run on the board without a cloud AI service. The browser fetches the installer assets from this site's host; when you enable Wi-Fi, the board can contact time synchronization servers and this fork's update service. This page contains no analytics and does not load third-party fonts.</p>
     </details>
   </section>
 
@@ -221,14 +206,14 @@
       <li><b>Clean:</b> drag across the glass to wipe off algae.</li>
       <li><b>Trim:</b> swipe sideways through the grass.</li>
       <li><b>Light:</b> double-tap the glass.</li>
-      <li><b>Sleep:</b> press <kbd>PWR</kbd>. Press it firmly again to wake.</li>
+      <li><b>Sleep:</b> press <kbd data-sleep-key>BOOT</kbd>; a touch wakes the screen in SCREEN mode. Other sleep modes may wake differently.</li>
       <li><b>Reset:</b> hold <kbd>BOOT</kbd> and tap the glass.</li>
     </ul>
   </section>
 
   <footer class="card foot">
-    <div><span>&copy; 2026 StratoBuilds</span><span>Firmware <span data-version>{{VERSION}}</span></span><span>Built <span data-built>{{DATE}}</span></span></div>
-    <div><span><a href="https://github.com/mediacutlet/pocket-tank">Source on GitHub</a></span><span><a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a></span></div>
+    <div><span>Original Pocket Tank &copy; 2026 StratoBuilds; unofficial FNK0104S port</span><span>Firmware <span data-version>{{VERSION}}</span></span><span>Built <span data-built>{{DATE}}</span></span></div>
+    <div><span><a href="https://github.com/mediacutlet/pocket-tank">Original Pocket Tank (upstream)</a></span><span><a href="LICENSE">License</a></span><span><a href="NOTICE">Notices</a></span><span><a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a></span></div>
   </footer>
 </main>
 <script>
@@ -236,8 +221,8 @@
      manifest per board). With more than one, a picker comes first and points
      both buttons at the chosen board's manifests; the choice is remembered. */
   const BOARDS = {{BOARDS}};
-  const LABEL = { amoled18: '1.8 inch', round175c: '1.75 inch round', watch206: '2.06 inch watch', square216: '2.16 inch square' };
-  const NOTE = { amoled18: 'version V1 or V2. About $35 with the screen and a battery', round175c: 'the pendant: a round tank that fills the whole circle', watch206: 'the watch: a tall tank you can wear', square216: 'the square: the biggest screen, in a little white box' };
+  const LABEL = { amoled18: '1.8 inch', round175c: '1.75 inch round', watch206: '2.06 inch watch', square216: '2.16 inch square', fnk0104s: 'Freenove FNK0104S 4.0 inch' };
+  const NOTE = { amoled18: 'version V1 or V2. About $35 with the screen and a battery', round175c: 'the pendant: a round tank that fills the whole circle', watch206: 'the watch: a tall tank you can wear', square216: 'the square: the biggest screen, in a little white box', fnk0104s: 'ST7796 480x320 touch display; BOOT is its sleep/wake key' };
   const installBtn = document.querySelector('esp-web-install-button:not(.fresh)');
   const freshBtn = document.querySelector('esp-web-install-button.fresh');
   /* The page may live on a different host than the firmware it installs (the
@@ -262,6 +247,7 @@
     document.querySelectorAll('.boards button').forEach(e => e.setAttribute('aria-checked', e.dataset.id === b.id));
     document.querySelectorAll('esp-web-install-button').forEach(e => e.hidden = false);
     document.querySelectorAll('[data-pickfirst]').forEach(e => e.hidden = true);
+    document.querySelectorAll('[data-sleep-key]').forEach(e => e.textContent = b.id === 'fnk0104s' ? 'BOOT' : 'PWR');
     stamp();
   }
   /* The guard against another board's version (0.3.9.3). A tank since 0.3.9.3
@@ -274,7 +260,7 @@
        install at all - the pop-up says which board it is, and the picker
        moves to it. A tank before 0.3.9.3 tells neither: the version decides,
        as before. */
-  const WORDS = { amoled18: 'the 1.8 inch', round175c: 'the 1.75 inch round', watch206: 'the 2.06 inch watch', square216: 'the 2.16 inch square' };
+  const WORDS = { amoled18: 'the 1.8 inch', round175c: 'the 1.75 inch round', watch206: 'the 2.06 inch watch', square216: 'the 2.16 inch square', fnk0104s: 'the Freenove 4.0 inch' };
   const boardsOf = info => { const p = String(info && info.name || '').split('|'); return { hw: p[1] || null, fw: p[2] || null }; };
   const overrides = {
     checkSameFirmware(manifest, info) {
@@ -292,6 +278,8 @@
   };
   installBtn.overrides = overrides;
   freshBtn.overrides = overrides;
+  document.querySelector('[data-supported]').innerHTML = BOARDS.map(b =>
+    `<p><b>${b.name}</b>, ${NOTE[b.id] || ''}.</p>`).join('');
   if (BOARDS.length > 1) {
     const list = document.querySelector('.boards');
     for (const b of BOARDS) {
@@ -302,12 +290,10 @@
       list.appendChild(e);
     }
     document.querySelector('[data-pick]').hidden = false;
-    document.querySelector('[data-supported]').innerHTML = BOARDS.map(b =>
-      `<p><b>Waveshare ${b.name.replace(/^Waveshare /, '')}</b>, ${NOTE[b.id] || ''}.</p>`).join('');
     document.querySelectorAll('esp-web-install-button').forEach(e => e.hidden = true);
     document.querySelectorAll('[data-pickfirst]').forEach(e => e.hidden = false);
     stamp();
-  } else stamp();
+  } else choose(BOARDS[0].id);
 </script>
 </body>
 </html>

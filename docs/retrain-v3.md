@@ -32,7 +32,7 @@ swapping the two model files.
 ## 0. Preflight (5 min, no Ollama load)
 
 ```bash
-cd "/Volumes/Local/Projects/LLM Fish Tank/pocket-tank/model"
+cd model  # from the repository root
 python3 gen_traces.py --count 5 --dry-run --schema 3 --seed 1     # v3 lines print, no network
 python3 train_tokenizer.py --schema 3                              # out/tokenizer_v3.bin, vocab 54
 curl -s http://localhost:11434/api/tags | head -c 300          # Ollama reachable, gemma4:26b listed
@@ -44,7 +44,7 @@ Run each in its own terminal (or `&`); `--max-minutes` stops them cleanly.
 v2 ran ~36–51 decisions/min with 2–3 workers → expect ~20K pairs in 8 h.
 
 ```bash
-cd "/Volumes/Local/Projects/LLM Fish Tank/pocket-tank/model"
+cd model  # from the repository root
 python3 gen_traces.py --schema 3 --count 12000 --max-minutes 480 --seed 31 --out out/v3_traces_a.jsonl
 python3 gen_traces.py --schema 3 --count 12000 --max-minutes 480 --seed 32 --out out/v3_traces_b.jsonl
 python3 gen_traces.py --schema 3 --count 12000 --max-minutes 480 --seed 33 --out out/v3_traces_c.jsonl

@@ -111,4 +111,30 @@
 #define B_PIN_LCD_RST     39
 #define B_PIN_TP_RST      40
 #define B_PIN_I2S_MCLK    42
+
+/* Freenove FNK0104S 4.0 inch ESP32-S3 board. */
+#define F_PIN_LCD_MOSI     11
+#define F_PIN_LCD_SCLK     12
+#define F_PIN_LCD_CS       10
+#define F_PIN_LCD_DC       46
+#define F_PIN_LCD_BL       45
+#define F_PIN_I2C_SDA      16
+#define F_PIN_I2C_SCL      15
+#define F_PIN_TP_RST       18
+#define F_PIN_TP_INT       17
+#define F_PIN_I2S_MCLK      4
+#define F_PIN_I2S_BCLK      5
+#define F_PIN_I2S_DIN       6
+#define F_PIN_I2S_WS        7
+#define F_PIN_I2S_DOUT      8
+#define F_PIN_AMP_EN        1    /* Freenove speaker enable is active low */
+#define F_PIN_BAT_ADC       9    /* ADC1 channel 8, 1:2 divider */
+#define F_PIN_SD_CLK       38
+#define F_PIN_SD_CMD       40
+#define F_PIN_SD_D0        39
+#define F_PIN_SD_D1        41
+#define F_PIN_SD_D2        48
+#define F_PIN_SD_D3        47
+#define F_PANEL_W         320
+#define F_PANEL_H         480
 #endif

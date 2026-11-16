@@ -12326,7 +12326,7 @@ void render_sd_toast(const tank_t *t, uint16_t *fb, int stride) {
 static const char *const SET_LIGHT[LIGHT_IDLE_N + 1] = { "DOUBLE-TAP",   /* MANUAL, the default: the row says how the light is worked */
     "5 SEC", "15 SEC", "30 SEC", "1 MIN", "3 MIN", "5 MIN", "10 MIN", "30 MIN" };
 static const char *const SET_FEED[2]   = { "ON", "OFF" };          /* the default first */
-#if TANK_WORN
+#if TANK_MANUAL_SCREEN
 static const char *const SET_SCREEN[2] = { "NORMAL", "TURNED" };   /* the default first */
 #endif
 
@@ -12376,7 +12376,7 @@ static void set_arrow(ctx_t *c, int x, int y, bool right, bool live) {
         rect_fill(c, px, cy - hh, 1, 2 * hh + 1, rgb);
     }
 }
-#if !TANK_WORN                                              /* (the watch has SCREEN where ROTATION is) */
+#if !TANK_MANUAL_SCREEN                                      /* manual boards have SCREEN where ROTATION is */
 /* ROTATION's picture: a padlock inside a turning arrow - shut when the way
  * up is locked, its shackle swung open while the picture follows the tank
  * (the two differ in shape, not in color alone) */
@@ -12430,7 +12430,7 @@ static void set_tile_box(ctx_t *c, int which, bool on, const char *what, const c
 }
 static void set_tiles(ctx_t *c, const tank_t *t) {
     const int lv = render_gfx_level(), y = SET_SEG_Y(SET_ROW5_Y);
-#if TANK_WORN
+#if TANK_MANUAL_SCREEN
     set_tile_box(c, SET_BOX_TILE, false, "SCREEN", SET_SCREEN[t->screen_turned ? 1 : 0]);
     set_screen_icon(c, SET_TILE_X0 + 24, y + SET_SEG_H / 2, t->screen_turned, MSP_TEAL);
 #else
@@ -12554,7 +12554,7 @@ int render_settings_tap(float x, float y, int *value) {
     if (y >= SET_SEG_Y(SET_ROW3_Y) - 12 && y < SET_SEG_Y(SET_ROW4_Y) - 12) { if (seg < 0) return SET_TAP_NONE; *value = 0; return x < SET_SPAN_MID ? SET_HIT_LIGHT_PREV : SET_HIT_LIGHT_NEXT; }
     if (y >= SET_SEG_Y(SET_ROW4_Y) - 12 && y < SET_SEG_Y(SET_ROW5_Y) - 12) { if (two < 0) return SET_TAP_NONE; *value = two == 0; return SET_TAP_FEED; }
     if (y >= SET_SEG_Y(SET_ROW5_Y) - 12 && y < SET_TILE_HIT_Y1) {   /* THE TILES (0.4.2): ROTATION (SCREEN) | GRAPHICS */
-        if (x >= SET_TILE_X0 - SET_TILE_OUT && x < SET_TILE_X0 + SET_TILE_W + SET_TILE_GAP / 2) return TANK_WORN ? SET_TAP_SCREEN : SET_TAP_ROTATE;
+        if (x >= SET_TILE_X0 - SET_TILE_OUT && x < SET_TILE_X0 + SET_TILE_W + SET_TILE_GAP / 2) return TANK_MANUAL_SCREEN ? SET_TAP_SCREEN : SET_TAP_ROTATE;
         if (x >= SET_TILE_X1 - SET_TILE_GAP / 2 && x < SET_TILE_X1 + SET_TILE_W + SET_TILE_OUT) return SET_TAP_GFX;
     }
     return SET_TAP_NONE;

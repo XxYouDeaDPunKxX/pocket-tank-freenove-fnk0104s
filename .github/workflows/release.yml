@@ -1,93 +1,101 @@
-# The over-the-air release (docs/OTA.md): on a version tag, build the firmware
-# for every board (docs/BOARDS.md) SIGNED with the project's key, make each
-# board's OTA manifest, and attach the images and the manifests to the GitHub
-# Release for that tag. A tank fetches its own board's
-#   https://github.com/mediacutlet/pocket-tank/releases/latest/download/latest-<board>.json
-# (amoled18, round175c, watch206, square216: common/version.h PT_BOARD)
-# so a release is live for every tank the moment it is published - and a
-# PRE-RELEASE is skipped by "latest": the private test channel (the
-# director's `ota url` points a tank at a pre-release's own asset URL).
-#
-# The signing key is the repository secret OTA_SIGNING_KEY (the PEM text of
-# firmware/keys/ota_signing_key.pem; tools/ota_key.sh). It never appears in
-# a log. Fork PRs do not see secrets and this workflow does not run for them.
-name: release
+# Signed OTA assets for the Freenove FNK0104S, based on upstream's release flow.
+# PUBLISH GATE: repo variable ENABLE_FNK0104S_PUBLISH=true and
+# secret OTA_SIGNING_KEY are required. No release runs before activation.
+# A tag fnk0104s-v<PT_RELEASE>-beta.<N> identifies a beta of this port.
+name: FNK0104S beta release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["fnk0104s-v*-beta.*"]
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: fnk0104s-pages
+  cancel-in-progress: false
 
 jobs:
   ota:
-    if: github.repository == 'mediacutlet/pocket-tank'
+    if: ${{ vars.ENABLE_FNK0104S_PUBLISH == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: read
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0          # git describe wants the tags; the tag's message is the manifest note
-      # checkout leaves the pushed tag as a plain ref to its commit: fetch the
-      # annotated tag itself, or the note below is the commit's message
-      - name: The tag's own message
-        run: git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
-      - name: Signing key
+          fetch-depth: 0
+      - name: Verify tag agrees with firmware release number
+        run: |
+          PT_RELEASE=$(sed -n 's/^#define PT_RELEASE[[:space:]]*"\([^"]*\)".*/\1/p' common/version.h)
+          PT_STAGE=$(sed -n 's/^#define PT_RELEASE_STAGE[[:space:]]*"\([^"]*\)".*/\1/p' common/version.h)
+          [[ "$PT_STAGE" == "beta" && "$GITHUB_REF_NAME" == "fnk0104s-v${PT_RELEASE}-beta."* &&
+             "$GITHUB_REF_NAME" =~ ^fnk0104s-v[0-9]+\.[0-9]+\.[0-9]+-beta\.[1-9][0-9]*$ ]] || {
+            echo "Expected FNK0104S beta tag matching PT_RELEASE=$PT_RELEASE and PT_RELEASE_STAGE=beta"
+            exit 1
+          }
+      - name: Require the persistent signing key
         env:
           OTA_SIGNING_KEY: ${{ secrets.OTA_SIGNING_KEY }}
         run: |
-          test -n "$OTA_SIGNING_KEY" || { echo "no OTA_SIGNING_KEY secret"; exit 1; }
+          test -n "$OTA_SIGNING_KEY" || { echo "OTA_SIGNING_KEY is required"; exit 1; }
           mkdir -p firmware/keys
+          umask 077
           printf '%s\n' "$OTA_SIGNING_KEY" > firmware/keys/ota_signing_key.pem
-      - name: Build (signed) - the 1.8
+          PUB_SHA=$(openssl pkey -in firmware/keys/ota_signing_key.pem -pubout -outform DER | sha256sum | cut -d' ' -f1)
+          test "$PUB_SHA" = "3b05a3abd646e8d41ef5d42685e8134a5d0e08a24b5657f8f8830b1e26ef750b" || {
+            echo "Signing key differs from the tested FNK0104S device trust key"
+            exit 1
+          }
+      - name: Configure this fork's OTA channel in the shipped image
+        run: python3 tools/prepare_freenove_release.py --repository "$GITHUB_REPOSITORY"
+      - name: Build signed FNK0104S (ESP-IDF 5.4.2)
         uses: espressif/esp-idf-ci-action@v1
         with:
-          esp_idf_version: v5.4.1
+          esp_idf_version: v5.4.2
           target: esp32s3
           path: firmware
-      # the other boards (docs/BOARDS.md): the same tree on top of their
-      # sdkconfig fragment, each in its own build dir
-      - name: Build (signed) - the round board (1.75C)
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: v5.4.1
-          target: esp32s3
-          path: firmware
-          command: idf.py -B build-round -DSDKCONFIG=build-round/sdkconfig "-DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.round" build
-      - name: Build (signed) - the watch (2.06)
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: v5.4.1
-          target: esp32s3
-          path: firmware
-          command: idf.py -B build-watch -DSDKCONFIG=build-watch/sdkconfig "-DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.watch" build
-      - name: Build (signed) - the square (2.16)
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: v5.4.1
-          target: esp32s3
-          path: firmware
-          command: idf.py -B build-square -DSDKCONFIG=build-square/sdkconfig "-DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.square" build
-      - name: OTA image + manifest
+          command: idf.py -B build-freenove -DSDKCONFIG=build-freenove/sdkconfig "-DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.freenove.ci" build
+      - name: Assemble signed firmware and OTA manifest
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          for B in firmware/build firmware/build-round firmware/build-watch firmware/build-square; do   # the board comes from each image's marker
-            python3 tools/make_ota_manifest.py --build-dir "$B" \
-              --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}" --out ota
-          done
-          ls -la ota
-          test "$(ls ota/latest-*.json | wc -l)" -eq 4 || { echo "expected four board manifests"; exit 1; }
+          python3 tools/make_ota_manifest.py --build-dir firmware/build-freenove --min-from 0.4.2 \
+            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}" --out ota
+          test -f ota/latest-fnk0104s.json
+          test "$(ls ota/pocket_tank-*-fnk0104s.bin | wc -l)" -eq 1
+          python3 tools/make_installer.py --build-dir firmware/build-freenove --out installer/dist
+          (cd installer/dist && zip -qr ../../ota/fnk0104s-offline-installer.zip .)
+          test -f ota/fnk0104s-offline-installer.zip
           rm -f firmware/keys/ota_signing_key.pem
-      - name: Attach to the release
+      - name: Publish FNK0104S beta prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          # a tag with a suffix (v0.3.0-rc1) is a pre-release: invisible to "latest"
-          PRE=""; case "$TAG" in *-*) PRE="--prerelease";; esac
-          if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" ota/latest-*.json ota/pocket_tank-*.bin --clobber
-          else
-            gh release create "$TAG" ota/latest-*.json ota/pocket_tank-*.bin $PRE --verify-tag \
-              --title "$TAG" --notes "$(git tag -l --format='%(contents)' "$TAG")"
-          fi
+          gh release create "$GITHUB_REF_NAME" \
+            ota/latest-fnk0104s.json ota/pocket_tank-*-fnk0104s.bin ota/fnk0104s-offline-installer.zip LICENSE NOTICE \
+            --verify-tag --prerelease --latest=false \
+            --title "Pocket Tank — Freenove FNK0104S beta ($GITHUB_REF_NAME)" \
+            --notes "First/public beta for Freenove FNK0104S: signed firmware, OTA manifest and offline installer. Requires USB-C for the first install. Based on Pocket Tank (PolyForm Noncommercial 1.0.0); see README, LICENSE and NOTICE."
+      - name: Place latest beta OTA manifest on the installer site
+        run: |
+          cp ota/latest-fnk0104s.json installer/dist/latest-fnk0104s-beta.json
+          touch installer/dist/.nojekyll
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: installer/dist
+
+  deploy:
+    needs: ota
+    if: ${{ vars.ENABLE_FNK0104S_PUBLISH == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -39,6 +39,9 @@
 #include "progression.h"
 #include "tank_events.h"
 #include "touch_gate.h"
+#ifdef TANK_FREENOVE
+#include "freenove_geometry.h"
+#endif
 #include "esp_lcd_touch_ft5x06.h"
 #include "esp_lcd_touch_cst816s.h"
 #include "esp_lcd_panel_io.h"
@@ -234,15 +237,19 @@ static bool cst9217_read(uint16_t *x, uint16_t *y) {
 #define FT_REST_US 50000
 static i2c_master_dev_handle_t s_ft;
 static bool ft3168_init(void) {
-    gpio_config_t rst = { .pin_bit_mask = 1ULL << W_PIN_TP_RST, .mode = GPIO_MODE_OUTPUT };
-    gpio_config(&rst); gpio_sleep_sel_dis(W_PIN_TP_RST);
-    gpio_set_level(W_PIN_TP_RST, 0); vTaskDelay(pdMS_TO_TICKS(10));
-    gpio_set_level(W_PIN_TP_RST, 1); vTaskDelay(pdMS_TO_TICKS(300));   /* its boot: it answers nothing sooner */
-    if (i2c_master_probe(board_i2c_bus(), I2C_ADDR_FT3168, 50) != ESP_OK) { ESP_LOGW(TAG, "no FT3168"); return false; }
+    const gpio_num_t pin = board_is_freenove() ? F_PIN_TP_RST : W_PIN_TP_RST;
+    gpio_config_t rst = { .pin_bit_mask = 1ULL << pin, .mode = GPIO_MODE_OUTPUT };
+    gpio_config(&rst); gpio_sleep_sel_dis(pin);
+    gpio_set_level(pin, 0); vTaskDelay(pdMS_TO_TICKS(10));
+    gpio_set_level(pin, 1);
+    vTaskDelay(pdMS_TO_TICKS(board_is_freenove() ? 500 : 300));
+    if (i2c_master_probe(board_i2c_bus(), I2C_ADDR_FT3168, 50) != ESP_OK) {
+        ESP_LOGW(TAG, "no %s at 0x38", board_is_freenove() ? "FT6336U" : "FT3168"); return false;
+    }
     i2c_device_config_t cfg = { .dev_addr_length = I2C_ADDR_BIT_LEN_7, .device_address = I2C_ADDR_FT3168, .scl_speed_hz = 400000,
                                 .flags.disable_ack_check = 1 };
     if (i2c_master_bus_add_device(board_i2c_bus(), &cfg, &s_ft) != ESP_OK) { s_ft = NULL; return false; }
-    ESP_LOGI(TAG, "FT3168 ready (the watch: read directly)");
+    ESP_LOGI(TAG, "%s ready", board_is_freenove() ? "FT6336U (Freenove)" : "FT3168 (watch)");
     return true;
 }
 static bool ft3168_read(uint16_t *x, uint16_t *y) {
@@ -257,8 +264,10 @@ static bool ft3168_read(uint16_t *x, uint16_t *y) {
     bool finger = answered && (d[0] & 0x0F) >= 1 && (d[1] >> 6) != 1, was = pr.down;
     if (finger) {
         int rx = ((d[1] & 0x0F) << 8) | d[2], ry = ((d[3] & 0x0F) << 8) | d[4];
-        if (rx > W_PANEL_W - 1) rx = W_PANEL_W - 1;
-        if (ry > W_PANEL_H - 1) ry = W_PANEL_H - 1;
+        const int pw = board_is_freenove() ? F_PANEL_W : W_PANEL_W;
+        const int ph = board_is_freenove() ? F_PANEL_H : W_PANEL_H;
+        if (rx > pw - 1) rx = pw - 1;
+        if (ry > ph - 1) ry = ph - 1;
         lx = (uint16_t)rx; ly = (uint16_t)ry;
         if (!was) s_cst_gaps = 0;
         s_seen_us = now;
@@ -281,7 +290,7 @@ static bool panel_read(uint16_t *x, uint16_t *y) {
 
 bool touch_port_init(void) {
     if (board_is_round() || board_is_square()) return cst9217_init();
-    if (board_is_watch()) return ft3168_init();
+    if (board_is_watch() || board_is_freenove()) return ft3168_init();
     esp_lcd_panel_io_handle_t io;
     bool v2 = board_is_v2();
     esp_lcd_panel_io_i2c_config_t io_cfg = v2 ? (esp_lcd_panel_io_i2c_config_t)ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG()
@@ -423,7 +432,7 @@ static void cal_point(float rx, float ry, float *tx, float *ty) {               
     /* the viewer's "down" and "right" on the upright glass: turned over they are its up and left, on a side
        (0.3.9.3) its left / right and down / up (tank_quarter_from_upright) */
     static const int8_t DOWN[4][2] = { { 0, 1 }, { -1, 0 }, { 0, -1 }, { 1, 0 } }, RIGHT[4][2] = { { 1, 0 }, { 0, 1 }, { -1, 0 }, { 0, -1 } };
-    float land = (float)s_bias_y + (board_is_round() || board_is_v2() || board_is_square() ? CAL_LAND : 0);
+    float land = board_is_freenove() ? (float)(s_bias_y - 10) : (float)s_bias_y + (board_is_round() || board_is_v2() || board_is_square() ? CAL_LAND : 0);
     float side = board_is_watch() ? CAL_W_LAND_X : board_is_square() ? CAL_S_LAND_X : 0;
     rx -= land * DOWN[s_q][0] + side * RIGHT[s_q][0];   /* the finger's own low landing is the viewer's "down"; on a wrist, and the */
     ry -= land * DOWN[s_q][1] + side * RIGHT[s_q][1];   /* square in a hand, it lands toward the tapping hand too: the viewer's right */
@@ -442,6 +451,10 @@ static void cal_point(float rx, float ry, float *tx, float *ty) {               
 static int s_raw_x0 = TANK_W, s_raw_x1 = -1, s_raw_y0 = TANK_H, s_raw_y1 = -1;
 void touch_port_raw_seen(int *x0, int *x1, int *y0, int *y1) { *x0 = s_raw_x0; *x1 = s_raw_x1; *y0 = s_raw_y0; *y1 = s_raw_y1; }
 static void map_touch(uint16_t px, uint16_t py, float *tx, float *ty) {
+#ifdef TANK_FREENOVE
+    /* FT6336U is portrait 320x480; inverse of the display's landscape mapping. */
+    int rx = fnk_touch_x(py), ry = fnk_touch_y(px);
+#else
     int ox, oy; display_port_frame_origin(&ox, &oy);  /* a panel bigger than the frame (the rectangle image on the watch): the frame's corner */
     int fx = (int)px - ox, fy = (int)py - oy;
     /* the raw report in tank space AS IF UPRIGHT: the calibration below is the
@@ -453,6 +466,7 @@ static void map_touch(uint16_t px, uint16_t py, float *tx, float *ty) {
     int rx = fx, ry = fy;
 #else
     int rx = TANK_W - 1 - fy, ry = fx;
+#endif
 #endif
     if (board_is_round()) {                           /* square panel, no turn: the display port's view of the frame, undone */
         float fx, fy; display_port_panel_to_tank(px, py, &fx, &fy);
@@ -1101,6 +1115,7 @@ void touch_port_show_milestones(bool on) {   /* (put up: TCH-4's page wait, 0.4.
     s_ms = on;
 }
 void touch_port_set_quiet(bool on) { s_quiet = on; }
+void touch_port_ignore_sleep_wake(void) { s_quiet_press = true; }
 /* (and the GIVE modal, 0.4.1 audit round 1, TCH-7: BOOT twice left it up - set the padlock on MY TANKS, CLOSE, and it stood over
    the locked tank with every tap on its BACK dropped; the birth flow came up under it. Closing it is BACK: an asked gift goes on) */
 void touch_port_dismiss(void) { adv_close(); render_give_modal_close(); s_sel = -1; if (s_ms) render_milestones_leave(); if (s_shop) render_shop_leave(); if (s_coll) render_collection_leave(); s_ms = false; s_set = false; s_shop = false; s_coll = false; s_bat = false; s_upd = false; s_shelf = false; }

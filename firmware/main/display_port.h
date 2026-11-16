@@ -77,6 +77,11 @@ bool board_is_watch(void);
 /* the SQUARE (Waveshare 2.16, 480 x 480), GPIO resets like the round board's;
  * its own build (TANK_SQUARE) is a tank that IS the panel, sent unturned */
 bool board_is_square(void);
+#if defined(TANK_FREENOVE)
+bool board_is_freenove(void);
+#else
+static inline bool board_is_freenove(void) { return false; }
+#endif
 /* the boot's chip probe has run (0.3.9.3): before it, board_port_hw() (progression.h)
  * cannot tell - the installer's early question waits for it (director.c) */
 bool board_port_probed(void);

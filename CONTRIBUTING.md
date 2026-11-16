@@ -1,25 +1,23 @@
-# Contributing to Pocket Tank
+# Contributing — Freenove FNK0104S port
 
-Thanks for helping. Ports to other boards stay in your own fork, and we link
-the good ones from the README. Fixes and small improvements are welcome as
-pull requests.
+This is an unofficial hardware compatibility fork of
+[Pocket Tank](https://github.com/mediacutlet/pocket-tank). Contributions
+should focus on compatibility with the Freenove FNK0104S, fixes to the port,
+and keeping the original game in step with upstream.
 
-## Before you open a pull request
+Before proposing a change, document the board revision, ESP-IDF version,
+reproduction steps, and whether behavior was tested on hardware, in the
+simulator, or by static inspection. Never include Wi-Fi credentials, private
+signing keys, personal serial logs, build caches, or saved user state in
+an issue or patch. Maintain the upstream save format and avoid adding
+unrelated hardware features.
 
-Pocket Tank is free for everyone under the
-[PolyForm Noncommercial License 1.0.0](LICENSE). To keep it that way, and to
-let us fund the work (for example, early builds for supporters), we need a
-little more than that license gives us for the code you send.
+The upstream project at this baseline is distributed under the
+**PolyForm Noncommercial License 1.0.0**, with required notices in
+[LICENSE](LICENSE) and [NOTICE](NOTICE). Those notices must be preserved.
+Please check these terms before redistributing modified firmware.
 
-By opening a pull request, you agree that:
-
-1. The code is yours to give, or you have the right to send it.
-2. You license your contribution to the project owner, Strato Doumanis,
-   under the PolyForm Noncommercial License 1.0.0 **and** grant
-   the owner a permanent, worldwide, royalty-free right to use, change,
-   license and distribute it for any purpose, commercial ones included.
-3. Everyone else gets your contribution under the same terms as the rest of
-   Pocket Tank.
-
-You keep the copyright in your own work. If any of this doesn't sit right
-with you, say so in the pull request before it is merged.
+If proposing a change **to the original upstream project**, read its
+own contribution policy first; it contains additional terms for upstream
+pull requests. A contribution to this fork is a separate matter and does
+not imply an upstream pull request.

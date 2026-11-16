@@ -55,7 +55,9 @@ def main():
     if a.check and (got_len != ln or got_sha != sha):
         sys.exit(f"model_trailer: common/version.h says {tag} {ln} B {sha[:16]}..., the file is {got_len} B {got_sha[:16]}... - update PT_MODEL_LEN / PT_MODEL_SHA256")
     out = a.out or os.path.join(a.build_dir, "model_trailer.bin")
-    os.makedirs(os.path.dirname(out), exist_ok=True)
+    parent = os.path.dirname(out)
+    if parent:  # Windows os.devnull is "nul", which has no parent directory.
+        os.makedirs(parent, exist_ok=True)
     open(out, "wb").write(blob)
     print(f"model_trailer: {out} - {tag}, {got_len:,} B, sha256 {got_sha[:16]}...{' (matches version.h)' if (got_len, got_sha) == (ln, sha) else ' (version.h DIFFERS)'}")
 

@@ -1,4 +1,4 @@
-#!/Users/strato/.espressif/python_env/idf5.4_py3.13_env/bin/python
+#!/usr/bin/env python3
 """touch_calib.py - run the nine-crosshair touch calibration on a board and
 fit the map from its log (firmware: director `ota calib`, update mode).
 

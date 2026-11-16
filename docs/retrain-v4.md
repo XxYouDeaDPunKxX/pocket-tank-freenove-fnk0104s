@@ -1,7 +1,7 @@
 # Schema v4 retrain — runbook (prepared 2026-09-14; NOT yet run)
 
-**Do not start this without Strato's go: the Mac Mini Ollama (192.168.0.139)
-is shared production.** Everything below is built and dry-run; only the
+**Do not start this without the teacher server operator's approval: the remote
+Ollama service may be shared production.** Everything below is built and dry-run; only the
 teacher data is missing.
 
 ## Why v4 (one data cycle, two wins)
@@ -45,17 +45,17 @@ v4 model is what makes them *choose* to leave.
 
 ## 0. Preflight (~8 min of teacher time, the required gate)
 
-Teacher host: the Mac Mini (default, shared - ask first) or THIS machine's own
+Teacher host: an approved shared Ollama server or THIS machine's own
 Ollama, which also has gemma4:26b (Strato, 2026-09-14; loads in ~12 s): pass
 `--host http://localhost:11434` to prompt_check / gen_traces, or
 `HOST=http://localhost:11434 ./run_v4_overnight.sh`. The 2026-09-14 check ran
 locally.
 
 ```bash
-cd "/Volumes/Local/Projects/LLM Fish Tank/pocket-tank/model"
+cd model  # from the repository root
 python3 gen_traces.py --count 5 --dry-run --schema 4 --seed 1       # v4 lines print, no network
 python3 train_tokenizer.py --schema 4                                # out/tokenizer_v4.bin, vocab 54
-curl -s http://192.168.0.139:11434/api/tags | grep -o gemma4:26b    # teacher reachable
+curl -s http://127.0.0.1:11434/api/tags | grep -o gemma4:26b    # local teacher reachable
 python3 prompt_check.py --schema 4 --workers 2 | tee out/prompt_check_v4.log   # 450 calls
 ```
 prompt_check's v4 panel adds: bored 9 at the bubbles (want bubbles again
@@ -108,7 +108,7 @@ Logs: out/prompt_check_v4_try1.log, _try2.log, _try3.log.
 ## 1-4. The night (unattended)
 
 ```bash
-cd "/Volumes/Local/Projects/LLM Fish Tank/pocket-tank/model"
+cd model  # from the repository root
 nohup ./run_v4_overnight.sh > /dev/null 2>&1 &
 tail -f out/v4_overnight.log
 ```
@@ -153,7 +153,7 @@ That is the intended cycle (a pastime for ~a minute, then off somewhere new).
 ## 5. Ship it (sim + firmware) - manual
 
 ```bash
-cd "/Volumes/Local/Projects/LLM Fish Tank/pocket-tank/model"
+cd model  # from the repository root
 cp out/model_q4_v4m.bin out/model_q4.bin
 cp out/tokenizer_v4.bin out/tokenizer.bin
 cp out/tokenizer_v4.bin ../firmware/main/tokenizer.bin

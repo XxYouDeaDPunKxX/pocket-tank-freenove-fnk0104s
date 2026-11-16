@@ -22,6 +22,7 @@ void device_sleep(int wake_after_s);   /* main.c: the keeper's sleep (0: grace t
 void device_fake_battery(int pct, int state);   /* main.c: the gauge reads pct% with the cable in state BAT_* (battery.h) for the pill, the battery page and the low-battery rule (b-roll); pct < 0 = the real gauge again. Not saved */
 void device_battery_log(void);          /* main.c: the battery page's numbers and the learned rates, to the log */
 int  device_sleep_cfg(int mask);       /* main.c: what the round board's deep sleep turns off (1 touch chip, 2 panel deep standby, 4 IMU clock, 8 QSPI lines held low); mask < 0 reads it; kept in NVS */
+int  device_fnk_sleep_mode(int mode);  /* FNK0104S experiment: 0 original, 1 screen, 2 light; < 0 reads the saved mode */
 void device_clock_log(void);           /* main.c: the clock - RTC chip or the internet's time (the clockless night), and what tonight will be */
 void device_poweroff(void);            /* main.c: save + PMIC cut now */
 void device_update_check(void);        /* main.c: as CHECK FOR UPDATES - save, restart into update mode (docs/OTA.md) */

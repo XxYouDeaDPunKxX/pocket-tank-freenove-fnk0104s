@@ -87,7 +87,7 @@ def panel(rng, schema, n):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--schema", type=int, choices=(2, 3, 4), default=3)
-    ap.add_argument("--host", default="http://192.168.0.139:11434")
+    ap.add_argument("--host", default="http://127.0.0.1:11434")
     ap.add_argument("--model", default="gemma4:26b")
     ap.add_argument("--prompt-file", default=None, help="candidate system prompt (default: gen_traces' prompt for the schema)")
     ap.add_argument("--n", type=int, default=40, help="calls per major case (default 40 -> ~320 calls)")

@@ -2,8 +2,38 @@ menu "pocket-tank"
     config POCKET_TANK_DISPLAY_SH8601
         bool "Drive the Waveshare 1.8in AMOLED (SH8601 / CO5300 over QSPI)"
         default n
+        depends on !POCKET_TANK_FREENOVE
         help
             Enable for the real board. Off = stub display port (QEMU / compile-only).
+    config POCKET_TANK_FREENOVE
+        bool "Freenove FNK0104S (ESP32-S3, ST7796 480x320, FT6336U)"
+        default n
+        depends on !POCKET_TANK_ROUND && !POCKET_TANK_WATCH && !POCKET_TANK_SQUARE
+        help
+            Build the original Pocket Tank for the FNK0104S with its own
+            display, touch, audio and battery ports.
+    config POCKET_TANK_FREENOVE_OTA_MANIFEST_URL
+        string "Freenove OTA manifest URL (empty until the fork has a release)"
+        default ""
+        depends on POCKET_TANK_FREENOVE
+        help
+            Exact HTTPS URL of latest-fnk0104s.json for the future fork.
+            Empty disables the update check with a clear message; the serial
+            director's 'ota url <url>' can override it for a controlled test.
+            Never point a FNK0104S at the upstream Waveshare release channel.
+    config POCKET_TANK_FREENOVE_BATTERY_ADC
+        bool "Enable optional Freenove GPIO9 Li-ion voltage estimate"
+        default n
+        depends on POCKET_TANK_FREENOVE
+        help
+            Off for the current USB-C-only build (no cell, no power sensor).
+            On only when an optional user-supplied Li-ion cell is installed:
+            use Freenove's GPIO9 / ADC1_CH8, 1:2 voltage divider. This does
+            not detect USB presence, charging state, or cell capacity.
+    config POCKET_TANK_DISPLAY_ST7796
+        bool "Drive the Freenove ST7796 SPI LCD"
+        default y if POCKET_TANK_FREENOVE
+        depends on POCKET_TANK_FREENOVE
     config POCKET_TANK_ROUND
         bool "The ROUND build: a 466 px bowl for the Waveshare ESP32-S3-Touch-AMOLED-1.75C"
         default n
@@ -35,7 +65,8 @@ menu "pocket-tank"
             SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.square" into its
             own build directory and sdkconfig (docs/board-amoled-2.16.md).
     config POCKET_TANK_TOUCH_FT3168
-        bool "Read the FT3168 capacitive touch (taps / holds)"
+        bool "Read FT3168 / Freenove FT6336U capacitive touch (taps / holds)"
+        default y if POCKET_TANK_FREENOVE
         default n
     config POCKET_TANK_AUDIO_ES8311
         bool "Play the sound bank through the ES8311 codec + NS4150B amp (I2S)"

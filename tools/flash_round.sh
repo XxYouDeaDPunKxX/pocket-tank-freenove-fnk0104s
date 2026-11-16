@@ -7,7 +7,7 @@
 #   tools/flash_round.sh               # build, flash the app
 #   tools/flash_round.sh --build-only
 #   tools/flash_round.sh --full        # a blank board: clear nvs, the model, bootloader + table + app
-#   ROUND_SERIAL=AA:BB:CC:DD:EE:FF tools/flash_round.sh    # the board, by its USB serial (or set it once in tools/boards.local.sh)
+#   ROUND_SERIAL=your-board-serial tools/flash_round.sh    # the board, by its USB serial (or set it once in tools/boards.local.sh)
 #
 # Its own build directory and sdkconfig (~/.cache/pocket-tank/fw-build-175c):
 # the tank's fw-build is never touched. No preflight: this board holds no tank

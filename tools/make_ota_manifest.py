@@ -80,8 +80,11 @@ def main():
     open(os.path.join(a.out, name), "wb").write(data)
     note = a.note
     if not note:
-        msg = git("tag", "-l", "--format=%(contents:subject)", f"v{rel}")
-        note = msg.strip() or "A new version of the tank"
+        # The FNK0104S fork uses its own tags; the upstream v<release> tag
+        # describes Waveshare firmware and must not be used as its release note.
+        release_tag = f"fnk0104s-v{rel}" if board == "fnk0104s" else f"v{rel}"
+        msg = git("tag", "-l", "--format=%(contents:subject)", release_tag)
+        note = msg.strip() or ("Freenove FNK0104S update" if board == "fnk0104s" else "A new version of the tank")
     note = note[:70]
     m = {
         "release": rel, "release_num": release_num(rel), "stage": stage, "board": board,

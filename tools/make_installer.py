@@ -99,7 +99,7 @@ def patch_dialog(vendor_dir):
     if len(names) != 1:
         sys.exit(f"{vendor_dir}: expected one install-dialog*.js, found {names}")
     path = os.path.join(vendor_dir, names[0])
-    js = open(path).read()
+    js = open(path, encoding="utf-8").read()
     n = js.count(DIALOG_ERASE_CLICK)
     if n != 2:
         sys.exit(f"{path}: the erase click handler occurs {n} times, expected 2 - ESP Web Tools "
@@ -110,7 +110,7 @@ def patch_dialog(vendor_dir):
             sys.exit(f"{path}: {old[:60]!r} occurs {js.count(old)} times, expected {want} - ESP Web Tools "
                      "changed; re-check the dialog edits before shipping the installer")
         js = js.replace(old, new)
-    open(path, "w").write(js)
+    open(path, "w", encoding="utf-8").write(js)
     return names[0], hashlib.sha1(js.encode()).hexdigest()[:8]
 
 
@@ -243,12 +243,13 @@ def main():
         if board in builds:
             sys.exit(f"{d}: a second build for {board}")
         builds[board] = parts
-    if "amoled18" not in builds:
-        sys.exit("no 1.8 build: manifest.json (the name every install page points at) is the 1.8's")
     order = [b[0] for b in BOARDS if b[0] in builds]
+    # Keep the official 1.8 as default when present; allow a standalone
+    # board port to use the ordinary manifest.json installer entry point.
+    primary_board = "amoled18" if "amoled18" in builds else order[0]
 
-    app18 = next(src for _, src, pub in builds["amoled18"] if pub == "pocket_tank.bin")
-    version = a.version or release_version(build_of_image(app18))   # the page's line: the 1.8's
+    primary_app = next(src for _, src, pub in builds[primary_board] if pub == "pocket_tank.bin")
+    version = a.version or release_version(build_of_image(primary_app))
     date = datetime.date.today().isoformat()
     out = a.out
     if os.path.isdir(out):
@@ -257,7 +258,7 @@ def main():
     published = {}                                 # published name -> bytes' sha256: one copy of what the boards share
     def publish(src, pub, board):
         digest = hashlib.sha256(open(src, "rb").read()).hexdigest()
-        if published.get(pub, digest) != digest:   # the 1.8 has this name with other bytes: the board's own copy
+        if published.get(pub, digest) != digest:   # another board owns this name: publish this board's own copy
             stem, ext = os.path.splitext(pub)
             pub = f"{stem}-{board}{ext}"
         if pub not in published:
@@ -265,7 +266,7 @@ def main():
             published[pub] = digest
         return pub
     board_files = {b: [(off, publish(src, pub, b), src) for off, src, pub in builds[b]] for b in order}
-    total = sum(os.path.getsize(src) for _, _, src in board_files["amoled18"])
+    total = sum(os.path.getsize(src) for _, _, src in board_files[primary_board])
     shutil.copytree(os.path.join(ROOT, "installer", "vendor"), os.path.join(out, "vendor"))
     dialog, tag = patch_dialog(os.path.join(out, "vendor", "esp-web-tools"))
     # The bundle's file names are content hashes of the PRISTINE vendor, and
@@ -290,7 +291,7 @@ def main():
                                                  # tank on the board (NVS) survives; a blank board boots fresh
             "builds": [build],
         }
-        stem = "manifest" if b == "amoled18" else f"manifest-{b}"
+        stem = "manifest" if b == primary_board else f"manifest-{b}"
         json.dump(manifest, open(os.path.join(out, f"{stem}.json"), "w"), indent=2)
         erase = dict(manifest, name="Pocket Tank (fresh)", new_install_prompt_erase=True)
         del erase["never_erase"]                 # the "start over" button: the dialog asks, checkbox off by default
@@ -308,23 +309,26 @@ def main():
         "<IfModule mod_headers>\n<FilesMatch \"\\.html$\">\n"
         "Header set Cache-Control \"no-cache, must-revalidate\"\n</FilesMatch>\n</IfModule>\n")
 
-    page = open(os.path.join(ROOT, "installer", "index.html")).read()
+    page = open(os.path.join(ROOT, "installer", "index.html"), encoding="utf-8").read()
     page = page.replace("{{VERSION}}", version).replace("{{DATE}}", date)
     page = page.replace("{{TOTAL_MB}}", f"{total / 1e6:.1f}")
     page = page.replace("{{VENDOR}}", vendor)
     page = page.replace("{{MANIFEST}}", a.manifest_url)
     page = page.replace("{{MANIFEST_ERASE}}", a.manifest_url.replace("manifest.json", "manifest-erase.json"))
     page = page.replace("{{BOARDS}}", json.dumps(page_boards))
-    open(os.path.join(out, "index.html"), "w").write(page)
+    open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(page)
+    # License and mandatory attribution must travel with the downloadable port.
+    for notice in ("LICENSE", "NOTICE"):
+        shutil.copyfile(os.path.join(ROOT, notice), os.path.join(out, notice))
     open(os.path.join(out, ".nojekyll"), "w").close()   # GitHub Pages: serve the folder as-is
 
     print(f"installer -> {out}  (version {version}, {date}; manifest {a.manifest_url}; "
           f"never_erase patch in {vendor}/{dialog})")
     for b in order:
-        print(f"  {b} ({'manifest' if b == 'amoled18' else 'manifest-' + b}.json):")
+        print(f"  {b} ({'manifest' if b == primary_board else 'manifest-' + b}.json):")
         for off, pub, src in board_files[b]:
             print(f"    0x{off:06x}  {os.path.getsize(src):>9,} B  {pub}")
-    print(f"  {total:,} B to flash (the 1.8)")
+    print(f"  {total:,} B to flash ({primary_board})")
 
 
 if __name__ == "__main__":

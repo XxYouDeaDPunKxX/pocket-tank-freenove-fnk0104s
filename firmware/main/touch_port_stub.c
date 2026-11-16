@@ -39,6 +39,7 @@ void touch_port_set_pill(bool up) { (void)up; }
 bool touch_port_battery(void) { return s_bat; }
 void touch_port_show_battery(bool on) { s_bat = on; }
 void touch_port_set_quiet(bool on) { (void)on; }
+void touch_port_ignore_sleep_wake(void) {}
 void touch_port_dismiss(void) { s_ms = false; s_bat = false; }
 static bool s_upd;
 bool touch_port_updates(void) { return s_upd; }

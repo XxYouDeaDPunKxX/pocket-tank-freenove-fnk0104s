@@ -1,12 +1,8 @@
-# Browser installer, published to GitHub Pages on every push to main that
-# touches the firmware, the shared tank code, the model or the installer:
-# build the firmware for every board (docs/BOARDS.md: one manifest per board,
-# the 1.8's keeps the plain manifest.json) with the same ESP-IDF, assemble
-# installer/dist (page + manifest + binaries + vendored ESP Web Tools) and
-# deploy it. Pages serves HTTPS with open CORS, so a page on another site
-# can point its <esp-web-install-button> at this manifest and always offer
-# the firmware of the latest push.
-name: installer
+# Freenove FNK0104S browser installer on GitHub Pages.
+# PUBLISH GATE: no job runs until the repository owner explicitly sets
+# Actions variable ENABLE_FNK0104S_PUBLISH=true and adds OTA_SIGNING_KEY.
+# Preparing/pushing this file alone cannot publish a site.
+name: FNK0104S installer
 
 on:
   push:
@@ -18,87 +14,93 @@ on:
       - "installer/**"
       - "tools/make_installer.py"
       - "tools/pt_boards.py"
+      - "tools/model_trailer.py"
+      - "tools/prepare_freenove_release.py"
       - ".github/workflows/installer.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: fnk0104s-pages
+  cancel-in-progress: false
 
 jobs:
   build:
+    if: ${{ vars.ENABLE_FNK0104S_PUBLISH == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0          # git describe wants the tags
-      - name: Signing key (the cable build carries the OTA trust root - docs/OTA.md)
+          fetch-depth: 0
+      - name: Require persistent OTA signing key
         env:
           OTA_SIGNING_KEY: ${{ secrets.OTA_SIGNING_KEY }}
         run: |
+          test -n "$OTA_SIGNING_KEY" || { echo "Set OTA_SIGNING_KEY before enabling publication"; exit 1; }
           mkdir -p firmware/keys
-          if [ -n "$OTA_SIGNING_KEY" ]; then
-            printf '%s\n' "$OTA_SIGNING_KEY" > firmware/keys/ota_signing_key.pem
-            echo "signing with the project's key"
-          elif [ "${{ github.repository }}" = "mediacutlet/pocket-tank" ]; then
-            echo "no OTA_SIGNING_KEY secret on the public repo: an unsigned cable build could never update itself"; exit 1
-          else
-            openssl genrsa -out firmware/keys/ota_signing_key.pem 3072 2> /dev/null
-            echo "THROWAWAY signing key (no secret here): this image compiles but can never take an update"
-          fi
-      - name: Build the firmware - the 1.8
+          umask 077
+          printf '%s\n' "$OTA_SIGNING_KEY" > firmware/keys/ota_signing_key.pem
+          PUB_SHA=$(openssl pkey -in firmware/keys/ota_signing_key.pem -pubout -outform DER | sha256sum | cut -d' ' -f1)
+          test "$PUB_SHA" = "3b05a3abd646e8d41ef5d42685e8134a5d0e08a24b5657f8f8830b1e26ef750b" || {
+            echo "Signing key does not match the FNK0104S key used by the tested firmware"
+            exit 1
+          }
+      - name: Configure this fork's OTA channel in the shipped image
+        run: python3 tools/prepare_freenove_release.py --repository "$GITHUB_REPOSITORY"
+      - name: Build signed FNK0104S firmware (ESP-IDF 5.4.2)
         uses: espressif/esp-idf-ci-action@v1
         with:
-          esp_idf_version: v5.4.1
+          esp_idf_version: v5.4.2
           target: esp32s3
           path: firmware
-      # the other boards (docs/BOARDS.md): the same tree on top of their
-      # sdkconfig fragment, each in its own build dir
-      - name: Build the firmware - the round board (1.75C)
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: v5.4.1
-          target: esp32s3
-          path: firmware
-          command: idf.py -B build-round -DSDKCONFIG=build-round/sdkconfig "-DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.round" build
-      - name: Build the firmware - the watch (2.06)
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: v5.4.1
-          target: esp32s3
-          path: firmware
-          command: idf.py -B build-watch -DSDKCONFIG=build-watch/sdkconfig "-DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.watch" build
-      - name: Build the firmware - the square (2.16)
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: v5.4.1
-          target: esp32s3
-          path: firmware
-          command: idf.py -B build-square -DSDKCONFIG=build-square/sdkconfig "-DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.square" build
-      # Only the public repo publishes: it tracks model/out/model_q4.bin and
-      # owns the Pages site. Anywhere else (the dev repo ignores model/out/*)
-      # the job stops here, a compile check of the firmware.
-      - name: Assemble the installer
-        if: github.repository == 'mediacutlet/pocket-tank'
+          command: idf.py -B build-freenove -DSDKCONFIG=build-freenove/sdkconfig "-DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.freenove.ci" build
+      - name: Assemble FNK0104S-only installer
         run: |
-          python3 tools/make_installer.py --build-dir firmware/build \
-            --board-build firmware/build-round --board-build firmware/build-watch --board-build firmware/build-square --out installer/dist
+          python3 tools/make_installer.py --build-dir firmware/build-freenove --out installer/dist
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          m = json.loads(Path("installer/dist/manifest.json").read_text())
+          assert m["board"] == "fnk0104s", m["board"]
+          assert len(m["builds"]) == 1
+          assert Path("installer/dist/manifest-erase.json").is_file()
+          assert Path("installer/dist/firmware/model_q4.bin").is_file()
+          assert Path("installer/dist/LICENSE").is_file()
+          assert Path("installer/dist/NOTICE").is_file()
+          print("FNK0104S installer ready")
+          PY
           touch installer/dist/.nojekyll
-          ls -la installer/dist installer/dist/firmware
-      - uses: actions/upload-pages-artifact@v3
-        if: github.repository == 'mediacutlet/pocket-tank'
+          rm -f firmware/keys/ota_signing_key.pem
+      - name: Keep the beta OTA manifest when refreshing the installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          beta_tag=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 \
+            --json tagName,isPrerelease,publishedAt \
+            --jq '[.[] | select(.isPrerelease and (.tagName | startswith("fnk0104s-v")) and (.tagName | contains("-beta.")))] | sort_by(.publishedAt) | last | .tagName // empty')
+          if [ -n "$beta_tag" ]; then
+            gh release download "$beta_tag" --repo "$GITHUB_REPOSITORY" \
+              --pattern latest-fnk0104s.json --dir installer/dist
+            mv installer/dist/latest-fnk0104s.json installer/dist/latest-fnk0104s-beta.json
+          fi
+      - name: Set up GitHub Pages
+        uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: installer/dist
 
   deploy:
     needs: build
-    if: github.repository == 'mediacutlet/pocket-tank'
+    if: ${{ vars.ENABLE_FNK0104S_PUBLISH == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

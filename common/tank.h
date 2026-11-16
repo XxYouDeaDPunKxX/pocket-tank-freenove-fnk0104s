@@ -43,6 +43,13 @@
 #else
 #define TANK_WORN 0
 #endif
+/* The Freenove has no IMU: like the watch, its screen orientation is chosen
+ * by the keeper, but its ordinary rectangular layout remains unchanged. */
+#if TANK_WORN || defined(TANK_FREENOVE)
+#define TANK_MANUAL_SCREEN 1
+#else
+#define TANK_MANUAL_SCREEN 0
+#endif
 #ifndef TANK_W                  /* a build may override both (-DTANK_W=480 -DTANK_H=480: a square panel) */
 #define TANK_W 448
 #define TANK_H 368
@@ -543,7 +550,7 @@ typedef struct tank {
     bool     light_manual_off;     /* MANUAL: the keeper's last double-tap left it off (saved) */
     bool     light_tip_seen;       /* a double-tap has turned the light off once: its notice (notice.h
                                     * NOTICE_LIGHTS_OUT) came up then, and never again (saved) */
-    bool     screen_turned;        /* a worn tank (TANK_WORN): settings SCREEN = TURNED (saved) */
+    bool     screen_turned;        /* manual SCREEN orientation (TANK_MANUAL_SCREEN), saved */
     bool     orient_lock;          /* settings ROTATION = locked (0.3.2, saved): the picture keeps the way up it
                                     * had when the keeper locked it, however the tank is turned (tank_orient) */
     uint8_t  orient_q;             /* the picture's way up now, in quarter turns clockwise (0..3; 2 = turned

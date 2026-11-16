@@ -342,7 +342,8 @@ static void run(tank_t *t, char *line) {
     if (!strncmp(line, "ota url ", 8)) {                     /* the manifest to check (the test channel); "default" = the release channel */
         const char *u = line + 8; while (*u == ' ') u++;
         bool ok = net_port_set_manifest_url(strcmp(u, "default") ? u : NULL);
-        ESP_LOGI(TAG, "ota url %s: %s", ok ? "set" : "NOT set", net_port_manifest_url());
+        const char *manifest = net_port_manifest_url();
+        ESP_LOGI(TAG, "ota url %s: %s", ok ? "set" : "NOT set", manifest[0] ? manifest : "(not configured)");
         return;
     }
     char *argv[8]; int argc = 0;                             /* (8 since 0.4.2: `wheel hold <ms> reach <px> slop <px>` is 7) */
@@ -523,8 +524,9 @@ static void run(tank_t *t, char *line) {
             ESP_LOGI(TAG, "ota flip %s: the picture is %s", inv ? "on" : "off", inv ? "turned over" : "upright"); return; }
         if (argc > 1 && !strcmp(argv[1], "kbd")) { update_debug_keyboard(); ESP_LOGI(TAG, "ota kbd: the keyboard page (calibration; the saved network is untouched)"); return; }
         if (argc > 1 && !strcmp(argv[1], "page")) { ESP_LOGI(TAG, "update mode: %s, page %d, %d characters typed", update_active() ? "active" : "not active", update_page(), (int)strlen(update_typed())); return; }   /* never the text: it may be the saved passphrase */
+        const char *manifest = net_port_manifest_url();
         ESP_LOGI(TAG, "v%s %s (build %s) running from %s, next boot %s | manifest %s | ota check (= CHECK FOR UPDATES) | ota url <url>|default",
-                 PT_RELEASE, PT_RELEASE_STAGE, version_port_string(), run ? run->label : "?", boot ? boot->label : "?", net_port_manifest_url());
+                 PT_RELEASE, PT_RELEASE_STAGE, version_port_string(), run ? run->label : "?", boot ? boot->label : "?", manifest[0] ? manifest : "(not configured)");
     }
     else if (!strcmp(c, "link")) {                           /* the tank link (docs/tank-link-0.4.md): link_dev.c; the phase 0 spike */
         if (argc > 1 && !strcmp(argv[1], "spike")) {
@@ -604,11 +606,12 @@ static void run(tank_t *t, char *line) {
         else if (argc > 1 && !strcmp(argv[1], "sign")) imu_port_side_sign_flip();
         else if (argc > 2 && !strcmp(argv[1], "probe")) { display_port_probe(!strcmp(argv[2], "on")); ESP_LOGI(TAG, "turn probe %s", argv[2]); }
         int m, gx, gy; bool on; display_port_side_info(&m, &gx, &gy, &on);
-        ESP_LOGI(TAG, "turn: the IMU says %d, the picture shows %d%s | sides %s, side MADCTL 0x%02x, gap %d,%d", imu_port_quarter(), t->orient_q,
-                 t->orient_lock ? " (ROTATION locked)" : "", display_port_quarters() ? "on" : "off (not this build's own board)", m, gx, gy);
-    } else if (!strcmp(c, "screen")) {          /* a worn tank's way up (tank.h tank_screen_*): screen [normal|turned] */
+        int shown = TANK_MANUAL_SCREEN ? (tank_screen_turned(t) ? 2 : 0) : t->orient_q;
+        ESP_LOGI(TAG, "turn: the IMU says %d, the picture shows %d%s | sides %s, side MADCTL 0x%02x, gap %d,%d", imu_port_quarter(), shown,
+                 !TANK_MANUAL_SCREEN && t->orient_lock ? " (ROTATION locked)" : "", display_port_quarters() ? "on" : "off (not this build's own board)", m, gx, gy);
+    } else if (!strcmp(c, "screen")) {          /* manual way up (tank.h tank_screen_*): screen [normal|turned] */
         if (argc > 1) { tank_screen_set(t, !strcmp(argv[1], "turned")); progression_settings_changed(); }
-        ESP_LOGI(TAG, "screen: %s%s", tank_screen_turned(t) ? "TURNED" : "NORMAL", TANK_WORN ? "" : " - not a worn build: never turned");
+        ESP_LOGI(TAG, "screen: %s%s", tank_screen_turned(t) ? "TURNED" : "NORMAL", TANK_MANUAL_SCREEN ? "" : " - this board has no manual SCREEN setting");
     } else if (!strcmp(c, "settings")) {
         bool on = argc < 2 || strcmp(argv[1], "off");
         touch_port_show_settings(on); ESP_LOGI(TAG, "settings page %s", on ? "up (CLOSE ends it)" : "closed");
@@ -957,8 +960,26 @@ static void run(tank_t *t, char *line) {
         int m = device_sleep_cfg(argc > 1 ? atoi(argv[1]) : -1);
         ESP_LOGI(TAG, "sleepcfg %d: the deep sleep turns off%s%s%s%s%s (1 touch chip asleep, 2 panel deep standby, 4 IMU clock, 8 QSPI lines held low; 0 = as the first night)",
                  m, m & 1 ? " +touch" : "", m & 2 ? " +panel" : "", m & 4 ? " +imu" : "", m & 8 ? " +qspi held low" : "", m ? "" : " nothing extra");
+#ifdef TANK_FREENOVE
+    } else if (!strcmp(c, "fnksleep")) {
+        int mode = -1;
+        if (argc > 1) {
+            if (!strcasecmp(argv[1], "legacy") || !strcmp(argv[1], "0")) mode = 0;
+            else if (!strcasecmp(argv[1], "screen") || !strcmp(argv[1], "1")) mode = 1;
+            else if (!strcasecmp(argv[1], "light") || !strcmp(argv[1], "2")) mode = 2;
+            else if (!strcasecmp(argv[1], "never") || !strcmp(argv[1], "3")) mode = 3;
+            else { ESP_LOGW(TAG, "fnksleep: use legacy | screen | light | never"); return; }
+        }
+        mode = device_fnk_sleep_mode(mode);
+        ESP_LOGI(TAG, "fnksleep: %s (saved; LIGHT uses SCREEN while USB serial host is connected)",
+                 mode == 1 ? "SCREEN" : mode == 2 ? "LIGHT" : mode == 3 ? "NEVER (BOOT does not suspend)" : "LEGACY");
+#endif
     } else if (!strcmp(c, "deepsleep")) {
         int n = argc > 1 ? atoi(argv[1]) : 0;
+#ifdef TANK_FREENOVE
+        if (n <= 0 && device_fnk_sleep_mode(-1)) ESP_LOGI(TAG, "Freenove experimental sleep: dark until BOOT or touch (no deep sleep)");
+        else
+#endif
         ESP_LOGI(TAG, "%s - the USB port vanishes until the wake", n > 0 ? "5 s grace, then deep sleep with the timer" : "the keeper's sleep: the grace, then power-off (the PWR key boots it)");
         vTaskDelay(pdMS_TO_TICKS(50));
         device_sleep(n);

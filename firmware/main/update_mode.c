@@ -42,8 +42,13 @@ void update_mode_run(uint16_t *fb, int way_up) {
              run ? run->label : "?", (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024, (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024);
     float frac = 0; bool charging = false;
     int pct = battery_port_read(&frac, &charging) ? (int)(frac * 100 + 0.5f) : -1;
+#if defined(CONFIG_POCKET_TANK_FREENOVE) && !defined(CONFIG_POCKET_TANK_FREENOVE_BATTERY_ADC)
+    bool on_power = true;                 /* USB-C-only profile: an explicit assumption, no VBUS sensor */
+    ESP_LOGI(TAG, "power: USB-C-only profile, external power assumed; no battery reading");
+#else
     bool on_power = pct >= 0 && BAT_ON_POWER(battery_port_state());
     ESP_LOGI(TAG, "battery %d%%, %s", pct, on_power ? "on the cable" : "on battery");
+#endif
     director_init();                       /* the console, for the hands-free test channel (main.c's later call is a no-op) */
     if (s_add) update_begin_add(pct, on_power); else update_begin(pct, on_power);
     int64_t last = esp_timer_get_time(), t0 = last, last_log = last;

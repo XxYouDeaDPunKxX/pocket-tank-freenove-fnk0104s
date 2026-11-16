@@ -29,7 +29,7 @@ with the firmware; a cue with no file (deferred) keeps its id and plays
 nothing.
 
     ~/.venvs/pocket-tank/bin/python tools/make_sounds.py import \\
-        "/Volumes/Local-1/Projects/LLM Fish Tank/working-assets/sounds/exports"
+        "/path/to/audio/exports"
     ~/.venvs/pocket-tank/bin/python tools/make_sounds.py build
 
   add <wav> <cue>  one file as one cue's canonical clip (the import's

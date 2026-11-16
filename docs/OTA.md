@@ -1,5 +1,14 @@
 # Over-the-air updates: the plan
 
+> **FNK0104S readers:** the text below is the *original upstream's historical*
+> OTA design and test log for Waveshare hardware, preserved for reference.
+> The Freenove beta uses a separate signed channel on this fork's GitHub
+> Pages (`latest-fnk0104s-beta.json`) and prerelease assets. The first
+> beta is installed over USB/browser; later releases require a higher
+> numeric firmware version. A local USB-first build with no OTA URL says
+> `NOT READY` by design. See the [FNK0104S board guide](board-freenove-fnk0104s.md)
+> and [beta publishing instructions](PUBLISHING.md) for the current port.
+
 Written 2026-09-30 from a planning session with Strato. Nothing here is
 built yet. Every number that came from a measurement says so; every number
 that is an estimate says so. When the work starts, the first two steps are
