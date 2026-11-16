@@ -2,6 +2,15 @@
 
 This is a maintainer procedure for the **unofficial** [Pocket Tank](https://github.com/mediacutlet/pocket-tank) compatibility fork. Repository publication, firmware distribution and flashing a physical board are **separate operator decisions**.
 
+## First beta published (2026-11-16)
+
+- Public fork: [XxYouDeaDPunKxX/pocket-tank-freenove-fnk0104s](https://github.com/XxYouDeaDPunKxX/pocket-tank-freenove-fnk0104s), based on upstream `c0d37ae` with one port commit `160b826`.
+- [Live browser installer](https://xxyoudeadpunkxx.github.io/pocket-tank-freenove-fnk0104s/) is served from the separate `gh-pages` branch. The site includes the signed FNK0104S image, six flash parts, normal/erase manifests and the vendor ESP Web Tools assets.
+- [Beta 0.4.2 prerelease](https://github.com/XxYouDeaDPunKxX/pocket-tank-freenove-fnk0104s/releases/tag/fnk0104s-v0.4.2-beta.1) carries the signed app image, OTA manifest and offline installer ZIP.
+- The first public firmware was built and signed locally with ESP-IDF 5.4.2 using the persistent key that remains outside Git. **The private key has not been uploaded as an Actions secret**. The repository's Actions publication variable is not enabled, so `installer.yml` and `release.yml` remain gated. GitHub Pages currently uses **Deploy from a branch** (`gh-pages`, `/`) rather than the future **GitHub Actions** publishing source described below.
+
+The remaining steps describe **future CI automation and later releases**; switching Pages to GitHub Actions should happen only after the Actions signing secret, gate and hosted build are verified. Do not replace the working `gh-pages` deployment prematurely.
+
 ## Repository and history
 
 - Suggested repository name: `pocket-tank-freenove-fnk0104s`.

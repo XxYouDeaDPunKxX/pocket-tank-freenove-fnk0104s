@@ -8,9 +8,11 @@
 
 ## Install on Freenove FNK0104S
 
-Use a desktop version of **Chrome or Edge** and a **USB-C data cable**. Open the fork's **GitHub Pages installer** (the `github-pages` deployment linked from this repository's GitHub page), connect the FNK0104S, select its serial port and click **Install Pocket Tank**. The standard button writes the firmware while preserving the tank's NVS save partition. A separately labelled **Erase the board and install fresh** button intentionally clears progress and Wi-Fi settings.
+**[OPEN THE FNK0104S WEB INSTALLER](https://xxyoudeadpunkxx.github.io/pocket-tank-freenove-fnk0104s/)**
 
-You can also download the **offline installer ZIP** from this fork's [Releases](../../releases) page and host its contents on `localhost`. Browser installation uses [ESP Web Tools](https://esphome.github.io/esp-web-tools/); it cannot install firmware from a normal file-opened HTML page without a local server.
+Open that page in desktop **Chrome or Edge** with the Freenove board connected by a **USB-C data cable**. Click **Install Pocket Tank** and select the board's serial port. The page runs ESP Web Tools directly in the browser; you do not need to install a separate flashing application. The normal button preserves the tank's NVS save partition. The separate **Erase the board and install fresh** button intentionally removes progress and Wi-Fi settings.
+
+An **[offline installer ZIP](https://github.com/XxYouDeaDPunKxX/pocket-tank-freenove-fnk0104s/releases/tag/fnk0104s-v0.4.2-beta.1)** is also available with the beta release. To use the ZIP, serve its extracted files on `localhost` as described in the [installer instructions](installer/README.md); Web Serial requires HTTPS or localhost.
 
 The installer includes a **signed** Freenove firmware, bootloader, partition table, local AI model, model trailer and OTA initialization data. **Do not flash images for Waveshare or other ESP32-S3 boards onto the FNK0104S.** See [installer instructions](installer/README.md) for troubleshooting, local testing and save precautions.
 

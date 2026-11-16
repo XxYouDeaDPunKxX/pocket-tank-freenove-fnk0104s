@@ -2,7 +2,7 @@
 
 This is the browser installer for the **unofficial FNK0104S beta port** of [Pocket Tank](https://github.com/mediacutlet/pocket-tank). It installs **only** the Freenove ESP32-S3 4.0-inch (480×320 ST7796) profile. For Waveshare hardware, use [upstream's installer](https://pocketank.com/install/).
 
-The public installer lives on **GitHub Pages for this fork** after the repository's publication gate is opened. Find its HTTPS URL in the repository's **Settings → Pages** or **Deployments → github-pages**. You can alternatively use the offline installer ZIP attached to the fork's [beta release](../../../releases).
+**[Open the live FNK0104S web installer](https://xxyoudeadpunkxx.github.io/pocket-tank-freenove-fnk0104s/).** This is the fork's own GitHub Pages site, with an **Install Pocket Tank** button powered by ESP Web Tools. You can alternatively use the offline installer ZIP attached to the [first beta release](https://github.com/XxYouDeaDPunKxX/pocket-tank-freenove-fnk0104s/releases/tag/fnk0104s-v0.4.2-beta.1).
 
 ## Install or update over USB-C
 
@@ -52,7 +52,7 @@ Each approved `fnk0104s-v<firmware-version>-beta.<N>` prerelease publishes its s
 
 The standard manifest uses `never_erase: true`; `tools/make_installer.py` patches the vendored install dialog so that it respects this setting. The generator checks that no normal installer part overlaps the NVS partition at `0x9000`–`0xF000`. The erase manifest remains a separate, explicit operation. This is the inherited upstream save-preservation mechanism, retained for the FNK0104S.
 
-The repository's [publishing guide](../docs/PUBLISHING.md) describes the GitHub Actions gate, signing-key continuity, beta release and deployment checks. `installer.yml` and `release.yml` cannot publish until the repository owner enables the explicit publication variable. **Building the local installer does not publish or flash anything.**
+The repository's [publishing guide](../docs/PUBLISHING.md) describes the current static Pages deployment, signing-key continuity and the optional future GitHub Actions pipeline. The first installer and release were assembled and signed locally. **No private signing key was uploaded to GitHub.**
 
 ## Upstream credit
 
