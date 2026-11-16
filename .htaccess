@@ -1,0 +1,8 @@
+AddType application/octet-stream .bin
+AddType application/json .json
+AddType text/javascript .js
+<IfModule mod_headers>
+<FilesMatch "\.html$">
+Header set Cache-Control "no-cache, must-revalidate"
+</FilesMatch>
+</IfModule>

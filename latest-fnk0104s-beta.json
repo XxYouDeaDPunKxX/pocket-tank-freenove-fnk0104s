@@ -1,0 +1,19 @@
+{
+  "release": "0.4.2",
+  "release_num": 262656,
+  "stage": "beta",
+  "board": "fnk0104s",
+  "build": "160b826",
+  "min_from": "0.4.2",
+  "app": {
+    "url": "https://github.com/XxYouDeaDPunKxX/pocket-tank-freenove-fnk0104s/releases/download/fnk0104s-v0.4.2-beta.1/pocket_tank-v0.4.2-fnk0104s.bin",
+    "size": 2297856,
+    "sha256": "4569885e0409eaf9097d54cd417553d46e8c01713af29b4274f485713279e4c1"
+  },
+  "note": "First Freenove FNK0104S beta",
+  "needs_cable": false,
+  "model": {
+    "version": "v3m",
+    "size": 7557640
+  }
+}

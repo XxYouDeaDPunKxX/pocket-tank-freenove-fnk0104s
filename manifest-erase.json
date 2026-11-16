@@ -1,0 +1,39 @@
+{
+  "name": "Pocket Tank (fresh)",
+  "version": "v0.4.2 beta (build 160b826)",
+  "built": "2026-11-16",
+  "board": "fnk0104s",
+  "board_name": "Freenove ESP32-S3 Display 4.0 (FNK0104S)",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        {
+          "path": "firmware/bootloader.bin",
+          "offset": 0
+        },
+        {
+          "path": "firmware/partition-table.bin",
+          "offset": 32768
+        },
+        {
+          "path": "firmware/pocket_tank.bin",
+          "offset": 65536
+        },
+        {
+          "path": "firmware/model_q4.bin",
+          "offset": 2686976
+        },
+        {
+          "path": "firmware/model_trailer.bin",
+          "offset": 11071488
+        },
+        {
+          "path": "firmware/ota_data_initial.bin",
+          "offset": 11075584
+        }
+      ]
+    }
+  ]
+}
